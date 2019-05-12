@@ -3,7 +3,7 @@ from visdom import Visdom
 
 from data import load_dataset
 from model import Landmark
-from resnet import resnext50_32x4d
+from resnet import resnext50_32x4d, resnet50
 from util import print_basic_params
 
 if torch.cuda.is_available():
@@ -14,14 +14,17 @@ else:
 
 def run():
     # Load model
-    model = resnext50_32x4d(num_classes=203094)
-    modelname = 'resnext50'
+    # model = resnext50_32x4d(num_classes=203094)
+    # modelname = 'resnext50'
+
+    model = resnet50(pretrained=True, num_classes=203094)
+    modelname = 'resnet50'
 
     # Visualization
     vis = Visdom(env=modelname)
 
     # Landmark object
-    landmark = Landmark(model, modelname, load_dataset, vis, device=device, epochs=15,
+    landmark = Landmark(model, modelname, load_dataset, vis, device=device, epochs=10,
                         lr=1e-3,
                         optim_params={'name': 'sgd'})
     print_basic_params(landmark)

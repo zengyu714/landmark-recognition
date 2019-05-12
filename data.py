@@ -7,34 +7,32 @@
 """
 
 import os
+import torch
 import pandas as pd
 import numpy as np
-from skimage import io, transform
-from torch.utils.data import Dataset, DataLoader, sampler
+from skimage import io
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms as T
 from util import parse_info
 
 DATA_ROOT = "/home/kimmy/dataset/"
 TOY_FILE = DATA_ROOT + "train_toy.csv"
 
-BATCH_SIZE = 64
-NUM_TOTAL = 20000
-
-NUM_TRAIN = int(NUM_TOTAL * 0.9)
-NUM_VAL = int(NUM_TOTAL * 0.05)
-NUM_TEST = NUM_TOTAL - NUM_TRAIN - NUM_VAL
+BATCH_SIZE = 96
+IMAGE_SIZE = (96, 96)
+NUM_TOTAL = -1
 
 NUM_WORKERS = 4
 
 transform_train = T.Compose([
-    T.RandomResizedCrop(64),
+    T.RandomResizedCrop(IMAGE_SIZE),
     T.RandomHorizontalFlip(),
     T.ToTensor(),
     # T.Normalize(mean=[0.485, 0.456, 0.406],
     #             std=[0.229, 0.224, 0.225])
 ])
 transform_val = T.Compose([
-    T.Resize(64),
+    T.Resize(IMAGE_SIZE),
     T.ToTensor(),
     # T.Normalize(mean=[0.485, 0.456, 0.406],
     #             std=[0.229, 0.224, 0.225])
@@ -68,7 +66,7 @@ class LandmarkDataset(Dataset):
         root_dir(str) : path of images folder
         stage (str): should be in ['train', 'val', 'test']
         """
-        self.landmarks_frame = pd.read_csv(csv_file)
+        self.landmarks_frame = pd.read_csv(csv_file)[:NUM_TOTAL]
         num_tot = len(self.landmarks_frame)
         # num_train, num_val, num_test
         sections = np.round(num_tot * np.cumsum([split[k] for k in ['train', 'val', 'test']])).astype(int)
@@ -89,9 +87,13 @@ class LandmarkDataset(Dataset):
         new_idx = idx + self.index[0]
         img_name, landmark_id = parse_info(self.landmarks_frame, new_idx, self.root_dir)
 
+        # if not os.path.exists(img_name):
+        #     return None
+
         while not os.path.exists(img_name):
             print(f"{img_name} is not found...")
-            new_idx = (idx + 1) % len(self.index) + self.index[0]
+            idx += 1
+            new_idx = idx % len(self.index) + self.index[0]
             img_name, landmark_id = parse_info(self.landmarks_frame, new_idx, self.root_dir)
 
         image = io.imread(img_name)
@@ -101,15 +103,25 @@ class LandmarkDataset(Dataset):
         return {'image': image, 'landmark_id': landmark_id}
 
 
+def lm_collate(batch):
+    image = torch.stack([item['image'] for item in batch if item is not None])
+    label = torch.squeeze(torch.stack([torch.LongTensor([item['landmark_id']])
+                                       for item in batch if item is not None]), dim=1)
+    return {'image': image, 'landmark_id': label}
+
+
 def load_dataset():
     landmark_train = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='train')
-    loader_train = DataLoader(landmark_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+    loader_train = DataLoader(landmark_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS,
+                              collate_fn=lm_collate, pin_memory=True)
 
     landmark_val = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='val')
-    loader_val = DataLoader(landmark_val, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+    loader_val = DataLoader(landmark_val, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS,
+                            collate_fn=lm_collate, pin_memory=True)
 
     landmark_test = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='test')
-    loader_test = DataLoader(landmark_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+    loader_test = DataLoader(landmark_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
+                             collate_fn=lm_collate, pin_memory=True)
 
     return loader_train, loader_val, loader_test
 

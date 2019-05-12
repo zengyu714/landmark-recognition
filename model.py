@@ -43,8 +43,11 @@ class Landmark:
         self.cur_epoch = 0
 
     def train(self):
+        num_correct = 0
+        num_samples = 0
+        self.model.train()  # put model to training mode
+
         for t, sample in enumerate(self.loader_train):
-            self.model.train()  # put model to training mode
             x = sample['image'].to(device=self.device, dtype=torch.float32)  # move to device, e.g. GPU
             y = sample['landmark_id'].to(device=self.device, dtype=torch.long)
 
@@ -56,9 +59,15 @@ class Landmark:
             loss.backward()
             self.optimizer.step()
 
+            _, preds = scores.max(1)
+            num_correct += (preds == y).sum()
+            num_samples += preds.size(0)
+
             if t % PRINT_EVERY == 0:
                 print(f"===> Train on epoch {self.cur_epoch} / {self.tot_epochs} \t|\t "
-                      f"loss: {loss.item():.4f} \t|\t batch: [{t}/{self.batch_nums}]")
+                      f"loss: {loss.item():.4f} \t|\t batch: [{t}/{self.batch_nums}] \t|\t "
+                      f"acc = {100 * float(num_correct) / num_samples:.3f}")
+
                 self.vis.images(x.cpu().data.numpy(), opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
                 if self.win_train_loss is None:
                     self.win_train_loss = self.vis.line(
@@ -74,10 +83,11 @@ class Landmark:
         num_samples = 0
         tot_loss = 0
         self.model.eval()  # set model to evaluation mode
+
         with torch.no_grad():
-            for x, y in self.loader_val:
-                x = x.to(device=self.device, dtype=torch.float32)  # move to device, e.g. GPU
-                y = y.to(device=self.device, dtype=torch.long)
+            for sample in self.loader_val:
+                x = sample['image'].to(device=self.device, dtype=torch.float32)  # move to device, e.g. GPU
+                y = sample['landmark_id'].to(device=self.device, dtype=torch.long)
                 scores = self.model(x)
                 tot_loss += F.cross_entropy(scores, y)
 
