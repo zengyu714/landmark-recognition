@@ -1,5 +1,6 @@
 import torch
 from visdom import Visdom
+import torch.hub
 
 from data import load_dataset
 from model import Landmark
@@ -11,11 +12,18 @@ if torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 
+NUM_CLASSES = 203094
 
 def run():
     # Load model
-    model = resnext50_32x4d(num_classes=203094)
-    modelname = 'resnext50'
+    # model = resnext50_32x4d(num_classes=203094)
+    # modelname = 'resnext50'
+    model = torch.hub.load(
+            'moskomule/senet.pytorch',
+            'se_resnet20',
+            num_classes=NUM_CLASSES)
+    modelname = 'se_resnet20'
+
 
     # Visualization
     vis = Visdom(env=modelname)
