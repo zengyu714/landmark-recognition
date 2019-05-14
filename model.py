@@ -1,11 +1,14 @@
-import torch.optim as optim
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-from pathlib import Path
-from visdom import Visdom
-import numpy as np
+import torch.optim as optim
 
-PRINT_EVERY = 100
+from configuration import CONF
+from util import gap_accuracy
+
+PRINT_EVERY = CONF.print_every
 
 
 class Landmark:
@@ -19,7 +22,7 @@ class Landmark:
         self.model = model
         self.modelname = modelname
         self.lr = lr
-        self.loader_train, self.loader_val, _ = loader()
+        self.loader_train_sets, self.loader_val, _ = loader()
 
         # TODO update params_to_update
         self.params_to_update = model.parameters()
@@ -37,17 +40,17 @@ class Landmark:
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='max', patience=30, cooldown=10,
                                                               verbose=True)
 
-        self.batch_nums = len(self.loader_train)
+        self.batch_nums = len(self.loader_val)
         self.best_acc = 0
         self.tot_epochs = epochs
         self.cur_epoch = 0
 
-    def train(self):
+    def train(self, loader_index):
         num_correct = 0
         num_samples = 0
         self.model.train()  # put model to training mode
 
-        for t, sample in enumerate(self.loader_train):
+        for t, sample in enumerate(self.loader_train_sets[loader_index]):
             x = sample['image'].to(device=self.device, dtype=torch.float32)  # move to device, e.g. GPU
             y = sample['landmark_id'].to(device=self.device, dtype=torch.long)
 
@@ -66,22 +69,28 @@ class Landmark:
             if t % PRINT_EVERY == 0:
                 print(f"===> Train on epoch {self.cur_epoch} / {self.tot_epochs} \t|\t "
                       f"loss: {loss.item():.4f} \t|\t batch: [{t}/{self.batch_nums}] \t|\t "
-                      f"acc = {100 * float(num_correct) / num_samples:.3f}")
+                      f"acc = {100 * float(num_correct) / num_samples:.7f}")
 
                 self.vis.images(x.cpu().data.numpy(), opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
                 if self.win_train_loss is None:
                     self.win_train_loss = self.vis.line(
-                            X=np.array([self.cur_epoch + t / len(self.loader_train)]),
+                            X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
                             Y=np.array([loss.item()]))
                 else:
                     self.vis.line(
-                            X=np.array([self.cur_epoch + t / len(self.loader_train)]),
+                            X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
                             Y=np.array([loss.item()]), win=self.win_train_loss, name='training loss', update='append')
 
     def val(self):
         num_correct = 0
         num_samples = 0
         tot_loss = 0
+
+        # save for computing GAP
+        preds_all = []
+        probs_all = []
+        trues_all = []
+
         self.model.eval()  # set model to evaluation mode
 
         with torch.no_grad():
@@ -90,15 +99,25 @@ class Landmark:
                 y = sample['landmark_id'].to(device=self.device, dtype=torch.long)
                 scores = self.model(x)
                 tot_loss += F.cross_entropy(scores, y)
+                softmax = F.softmax(scores, dim=1)
 
-                _, preds = scores.max(1)
+                probs, preds = softmax.max(1)
                 num_correct += (preds == y).sum()
                 num_samples += preds.size(0)
+
+                preds_all.append(preds)
+                probs_all.append(probs)
+                trues_all.append(y)
+
             acc = float(num_correct) / num_samples
             loss = tot_loss / num_samples
+            # compute gap
+            args = [torch.cat(i).cpu().numpy() for i in [preds_all, probs_all, trues_all]]
+            gap = gap_accuracy(*args, return_df=False)
 
             print(f"===> *Val* on epoch {self.cur_epoch} / {self.tot_epochs} \t|\t "
-                  f"acc: {100 * acc:.3f} \t|\t loss: {loss.item():.4f}")
+                  f"acc: {100 * acc:.7f} \t|\t loss: {loss.item():.4f} \t|\t GAP: {gap:.7f}")
+
             self.vis.images(x.cpu().data.numpy(), opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
             if self.win_val_acc is None:
                 self.win_val_acc = self.vis.line(
@@ -119,7 +138,7 @@ class Landmark:
             if not Path('checkpoints').exists():
                 Path('checkpoints').mkdir()
             savename = f"./checkpoints/{self.modelname}_best.ckpt"
-            print(f"===> ===> Saving model in \"{savename}\" with acc {100 * acc:.3f} "
+            print(f"===> ===> Saving model in \"{savename}\" with acc {100 * acc:.7f} "
                   f"in epoch {self.cur_epoch} / {self.tot_epochs}...")
             torch.save(state, savename)
             self.best_acc = acc
@@ -132,4 +151,7 @@ class Landmark:
         self.best_acc = checkpoint['acc']
         self.cur_epoch = checkpoint['epoch']
         print(f"*** Resume checkpoint from \"{self.modelname}\" "
-              f"with acc {100 * self.best_acc:.3f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
+              f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
+
+    def submit(self):
+        pass

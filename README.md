@@ -1,7 +1,9 @@
 ## TODO
 
-1. use more gpus to train.
-2. training toy dataset.
-3. DeLF pipeline
-4. **transfer learning**
+- [ ] **DEBUG transfer learning** 
+- [ ] Utilize command line / shell scripts
+- [ ] use more gpus to train.
+- [x] training toy dataset.
+- [ ] **DeLF pipeline (with bbox)**
+- [ ] Optimize visdom (clear previous trash one)
 

@@ -11,3 +11,6 @@ data/
 
 # PyCharm
 .idea/
+
+# Log files
+*.log

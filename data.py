@@ -11,21 +11,25 @@ import torch
 import pandas as pd
 import numpy as np
 from skimage import io
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms as T
 from util import parse_info
+from configuration import CONF
 
-DATA_ROOT = "/home/kimmy/dataset/"
-TOY_FILE = DATA_ROOT + "train_toy.csv"
+DATA_ROOT = CONF.data_root
+TOY_FILE = CONF.toy_file
+DATA_FILE = CONF.data_file
+DATA_SPLIT = CONF.data_split
 
-BATCH_SIZE = 96
-IMAGE_SIZE = (96, 96)
-NUM_TOTAL = -1
+BATCH_SIZE = CONF.batch_size
+IMAGE_SIZE = CONF.image_size
+NUM_TOTAL = CONF.num_total
 
-NUM_WORKERS = 4
+NUM_WORKERS = CONF.num_workers
 
 transform_train = T.Compose([
-    T.RandomResizedCrop(IMAGE_SIZE),
+    # width = height
+    T.RandomResizedCrop(IMAGE_SIZE[0]),
     T.RandomHorizontalFlip(),
     T.ToTensor(),
     # T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -60,7 +64,7 @@ class LandmarkDataset(Dataset):
     Ref: https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     """
 
-    def __init__(self, csv_file, root_dir, stage, split={'train': 0.9, 'val': 0.06, 'test': 0.04}):
+    def __init__(self, csv_file, root_dir, stage, split=DATA_SPLIT):
         """
         csv_file(str) : path of csv file with url, file names and landmark_id
         root_dir(str) : path of images folder
@@ -110,24 +114,49 @@ def lm_collate(batch):
     return {'image': image, 'landmark_id': label}
 
 
-def load_dataset():
-    landmark_train = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='train')
-    loader_train = DataLoader(landmark_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS,
-                              collate_fn=lm_collate, pin_memory=True)
+def random_split(dataset, chunk_nums):
+    """
+    Randomly split a dataset into non-overlapping new datasets of given chunk nums.
 
-    landmark_val = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='val')
+    Arguments:
+        dataset (Dataset): Dataset to be split
+        lengths (sequence): lengths of splits to be produced
+    """
+    indices = torch.randperm(len(dataset)).tolist()
+    size = len(dataset) // chunk_nums
+    chunks = []
+
+    chunk_nums = int(chunk_nums)
+    size = int(size)
+    for i in range(chunk_nums - 1):
+        chunks.append(Subset(dataset, indices[i * size: (i + 1) * size]))
+    # append the last chunk
+    return chunks + [Subset(dataset, indices[(chunk_nums - 1) * size:])]
+
+
+def load_dataset():
+    landmark_train = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='train')
+    # "squeeze" the huge training dataset to make it save checkpoint / print logs timely
+    # approximates 15
+    chunk_nums = DATA_SPLIT['train'] // DATA_SPLIT['val']
+    landmark_train_subsets = random_split(landmark_train, chunk_nums)
+    loader_train_sets = [DataLoader(landmark_train_subset, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
+                                    collate_fn=lm_collate, pin_memory=True)
+                         for landmark_train_subset in landmark_train_subsets]
+
+    landmark_val = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='val')
     loader_val = DataLoader(landmark_val, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS,
                             collate_fn=lm_collate, pin_memory=True)
 
-    landmark_test = LandmarkDataset(csv_file=TOY_FILE, root_dir=DATA_ROOT, stage='test')
+    landmark_test = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='test')
     loader_test = DataLoader(landmark_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
                              collate_fn=lm_collate, pin_memory=True)
 
-    return loader_train, loader_val, loader_test
+    return loader_train_sets, loader_val, loader_test
 
 
 if __name__ == "__main__":
     # sample_toy_dataset()
-    loader_train, loader_val, loader_test = load_dataset()
-    sample = next(iter(loader_train))
+    loader_train_sets, loader_val, loader_test = load_dataset()
+    sample = next(iter(loader_val))
     print(sample['image'].shape, sample['landmark_id'])

@@ -247,8 +247,15 @@ def resnet50(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
-                   **kwargs)
+
+    if pretrained:
+        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
+        num_features = model_ft.fc.in_features
+        model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
+                                     nn.Linear(num_features, kwargs['num_classes']), nn.ReLU()])
+    else:
+        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
+    return model_ft
 
 
 def resnet101(pretrained=False, progress=True, **kwargs):

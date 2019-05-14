@@ -1,7 +1,7 @@
-from functools import partial
-import numpy as np
 import os
-import visdom
+
+import numpy as np
+import pandas as pd
 
 
 def parse_info(df, idx, root):
@@ -20,3 +20,35 @@ def print_basic_params(landmark):
     print(f"*** Start training {landmark.modelname} for {landmark.tot_epochs} epochs...")
     print(f"- Current GPU device is {landmark.device}")
     print(f"- Optimizer is {landmark.optimizer}")
+
+
+def gap_accuracy(pred, prob, true, return_df):
+    """
+    Compute Global Average Precision (aka micro AP), the metric for the
+    Google Landmark Recognition competition.
+    This function takes predictions, labels and confidence scores as vectors.
+    In both predictions and ground-truth, use None/np.nan for "no label".
+
+    Args:
+        pred: vector of integer-coded predictionsls
+        prob: vector of probability or confidence scores for pred
+        true: vector of integer-coded labels for ground truth
+        return_df: also return the data frame used in the calculation
+
+    Returns:
+        GAP score
+
+    Ref:
+        https://www.kaggle.com/davidthaler/gap-metric
+
+    """
+    x = pd.DataFrame({'pred': pred, 'conf': prob, 'true': true})
+    x.sort_values('conf', ascending=False, inplace=True, na_position='last')
+    x['correct'] = (x.true == x.pred).astype(int)
+    x['prec_k'] = x.correct.cumsum() / (np.arange(len(x)) + 1)
+    x['term'] = x.prec_k * x.correct
+    gap = x.term.sum() / x.true.count()
+    if return_df:
+        return gap, x
+    else:
+        return gap
