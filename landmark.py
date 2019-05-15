@@ -6,14 +6,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from configuration import CONF
-from util import gap_accuracy
+from utils.util import gap_accuracy
 
 PRINT_EVERY = CONF.print_every
 
 
 class Landmark:
-    def __init__(self, model, modelname, loader, vis, device,
-                 lr=1e-4, epochs=10, optim_params=None):
+    def __init__(self, model, modelname, loader, vis, device, batch_size,
+                 lr=1e-4, epochs=10, optim_params=None, params_to_update=None):
         self.device = device
         self.vis = vis
         self.win_train_loss = None
@@ -21,23 +21,28 @@ class Landmark:
 
         self.model = model
         self.modelname = modelname
-        self.lr = lr
-        self.loader_train_sets, self.loader_val, _ = loader()
 
-        # TODO update params_to_update
-        self.params_to_update = model.parameters()
+        self.lr = lr
+        self.batch_size = batch_size
+        self.loader_train_sets, self.loader_val, _ = loader(batch_size)
+
+        if params_to_update is None:
+            self.params_to_update = model.parameters()
+        else:
+            self.params_to_update = params_to_update
 
         optim_name = optim_params.get('name', 'sdg')
+
         if optim_name == 'adam':
             weight_decay = optim_params.get('weight_decay', 0)
-            self.optimizer = optim.Adam(self.params_to_update, lr=lr, weight_decay=weight_decay)
+            self.optimizer = optim.Adam(self.params_to_update, lr=lr, weight_decay=weight_decay, amsgrad=True)
         elif optim_name == 'sgd':
             momentum = optim_params.get('momentum', 0.9)
             weight_decay = optim_params.get('weight_decay', 5e-4)
             self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
                                        weight_decay=weight_decay)
         # factor lr by 0.1 in plateau
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='max', patience=30, cooldown=10,
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='max', patience=4, cooldown=1,
                                                               verbose=True)
 
         self.batch_nums = len(self.loader_val)
@@ -67,11 +72,13 @@ class Landmark:
             num_samples += preds.size(0)
 
             if t % PRINT_EVERY == 0:
-                print(f"===> Train on epoch {self.cur_epoch} / {self.tot_epochs} \t|\t "
-                      f"loss: {loss.item():.4f} \t|\t batch: [{t}/{self.batch_nums}] \t|\t "
-                      f"acc = {100 * float(num_correct) / num_samples:.7f}")
+                acc = 100 * float(num_correct) / num_samples
+                print(f"===> Train on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
+                      f"loss: {loss.item():.4f}  |  batch: [{t}/{self.batch_nums} ({loader_index}/"
+                      f"{len(self.loader_train_sets)})]  |  "
+                      f"acc = {acc:.7f}")
 
-                self.vis.images(x.cpu().data.numpy(), opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
+                self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
                 if self.win_train_loss is None:
                     self.win_train_loss = self.vis.line(
                             X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
@@ -115,10 +122,10 @@ class Landmark:
             args = [torch.cat(i).cpu().numpy() for i in [preds_all, probs_all, trues_all]]
             gap = gap_accuracy(*args, return_df=False)
 
-            print(f"===> *Val* on epoch {self.cur_epoch} / {self.tot_epochs} \t|\t "
-                  f"acc: {100 * acc:.7f} \t|\t loss: {loss.item():.4f} \t|\t GAP: {gap:.7f}")
+            print(f"===> *Val* on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
+                  f"acc: {100 * acc:.7f}  |  loss: {loss.item():.4f}  |  GAP: {gap:.7f}")
 
-            self.vis.images(x.cpu().data.numpy(), opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
+            self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
             if self.win_val_acc is None:
                 self.win_val_acc = self.vis.line(
                         X=np.column_stack([self.cur_epoch] * 2),
@@ -152,6 +159,19 @@ class Landmark:
         self.cur_epoch = checkpoint['epoch']
         print(f"*** Resume checkpoint from \"{self.modelname}\" "
               f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
+
+    def save(self, loader_index):
+        state = {
+            'model': self.model.state_dict(),
+            'acc'  : None,
+            'epoch': self.cur_epoch,
+        }
+        if not Path('checkpoints').exists():
+            Path('checkpoints').mkdir()
+        savename = f"./checkpoints/{self.modelname}_newest.ckpt"
+        print(f"===> ===> Saving model in \"{savename}\" by {loader_index}-th training set "
+              f"in epoch {self.cur_epoch} / {self.tot_epochs}...")
+        torch.save(state, savename)
 
     def submit(self):
         pass

@@ -204,8 +204,11 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
-
+        if isinstance(self.fc, (list, nn.ModuleList)):
+            for fc in self.fc:
+                x = fc(x)
+        else:
+            x = self.fc(x)
         return x
 
 
@@ -252,7 +255,7 @@ def resnet50(pretrained=False, progress=True, **kwargs):
         model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
         num_features = model_ft.fc.in_features
         model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
-                                     nn.Linear(num_features, kwargs['num_classes']), nn.ReLU()])
+                                     nn.Linear(num_features, kwargs['num_classes'])])
     else:
         model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
     return model_ft

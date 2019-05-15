@@ -3,6 +3,10 @@ import os
 import numpy as np
 import pandas as pd
 
+from torch import optim
+
+from configuration import CONF
+
 
 def parse_info(df, idx, root):
     """
@@ -20,6 +24,7 @@ def print_basic_params(landmark):
     print(f"*** Start training {landmark.modelname} for {landmark.tot_epochs} epochs...")
     print(f"- Current GPU device is {landmark.device}")
     print(f"- Optimizer is {landmark.optimizer}")
+    print(f"- Batch size is {landmark.batch_size}")
 
 
 def gap_accuracy(pred, prob, true, return_df):
@@ -52,3 +57,11 @@ def gap_accuracy(pred, prob, true, return_df):
         return gap, x
     else:
         return gap
+
+
+def unfreeze_resnet50_bottom(landmark):
+    # TODO: may tune learning rate
+    for i, child in enumerate(landmark.model.children()):
+        # add three more modeuls to train
+        if i >= 6 and i < 9:
+            landmark.optimizer.add_param_group({'params': child.parameters()})
