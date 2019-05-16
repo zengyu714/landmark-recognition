@@ -59,5 +59,9 @@ def unfreeze_resnet50_bottom(landmark):
     # TODO: may tune learning rate
     for i, child in enumerate(landmark.model.children()):
         # add two more modeuls to train
-        if i in [6, 7, 9]:  # child 8 is Adaptive layer
-            landmark.optimizer.add_param_group({'params': child.parameters()})
+        if i in [6, 7]:  # conv4_x and conv5_x
+            try:
+                landmark.optimizer.add_param_group({'params': child.parameters()})
+            except ValueError:
+                print(f"Layer {i} is already exists")
+                continue

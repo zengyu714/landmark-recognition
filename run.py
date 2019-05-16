@@ -18,7 +18,7 @@ parser.add_argument('-f', '--finetune', action="store_true",
                     help='Finetune the resnet50')
 parser.add_argument('--model-name', type=str, default="finetune",
                     help='The name of the finetune model')
-parser.add_argument('--use-stage', type=bool, default=False,
+parser.add_argument('--use-stage', type=int, default=0,
                     help='Use 3 stage strategy to finetune')
 parser.add_argument('--stage-epoch', type=int, default=3,
                     help='The epoch to finetune the fc layers')
@@ -40,6 +40,8 @@ if torch.cuda.is_available():
     device = torch.cuda.current_device()
 else:
     device = torch.device('cpu')
+
+print(args.use_stage)
 
 
 def finetune_stage():
@@ -74,22 +76,22 @@ def finetune_stage():
     landmark.model = landmark.model.to(device)  # move the model parameters to CPU/GPU
 
     # stage 1 - 3
-    for e in range(args.stage_epoch):
+    for e in range(landmark.cur_epoch, args.stage_epoch):
         landmark.cur_epoch = e + 1
         for loader_index in range(len(landmark.loader_train_sets)):
             landmark.train(loader_index)
             landmark.save(loader_index)
         landmark.val()
-        landmark.scheduler.step(landmark.best_acc)
+        landmark.scheduler.step()
 
     unfreeze_resnet50_bottom(landmark)
-    for e in range(args.stage_epoch, landmark.tot_epochs):
+    for e in range(max(args.stage_epoch, landmark.cur_epoch), landmark.tot_epochs):
         landmark.cur_epoch = e + 1
         for loader_index in range(len(landmark.loader_train_sets)):
             landmark.train(loader_index)
             landmark.save(loader_index)
         landmark.val()
-        landmark.scheduler.step(landmark.best_acc)
+        landmark.scheduler.step()
 
 
 def run(pretrain=True):
@@ -128,11 +130,12 @@ def run(pretrain=True):
             landmark.train(loader_index)
             landmark.save(loader_index)
         landmark.val()
-        landmark.scheduler.step(landmark.best_acc)
+        landmark.scheduler.step()
 
 
 if __name__ == "__main__":
     if args.use_stage:
         finetune_stage()
     else:
+        print("here")
         run(args.finetune)

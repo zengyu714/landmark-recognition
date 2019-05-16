@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -34,7 +35,7 @@ class Landmark:
         else:
             self.params_to_update = params_to_update
 
-        optim_name = optim_params.get('name', 'sdg')
+        optim_name = optim_params.get('name', 'adam')
 
         if optim_name == 'adam':
             weight_decay = optim_params.get('weight_decay', 0)
@@ -75,7 +76,8 @@ class Landmark:
 
             if t % PRINT_EVERY == 0:
                 acc = 100 * float(num_correct) / num_samples
-                print(f"===> Train on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
+                now = datetime.now().strftime('%m-%d %H:%M:%S')
+                print(f"[{now}] Train on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
                       f"loss: {loss.item():.4f}  |  batch: [{t}/{self.batch_nums} ({loader_index}/"
                       f"{len(self.loader_train_sets)})]  |  "
                       f"acc = {acc:.7f}")
@@ -123,8 +125,9 @@ class Landmark:
             # compute gap
             args = [torch.cat(i).cpu().numpy() for i in [preds_all, probs_all, trues_all]]
             gap = gap_accuracy(*args, return_df=False)
+            now = datetime.now().strftime('%m-%d %H:%M:%S')
 
-            print(f"===> *Val* on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
+            print(f"[{now}] *Val* on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
                   f"acc: {100 * acc:.7f}  |  loss: {loss.item():.4f}  |  GAP: {gap:.7f}")
 
             self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
