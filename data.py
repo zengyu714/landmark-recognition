@@ -195,7 +195,7 @@ def load_dataset(batch_size=256):
 
 if __name__ == "__main__":
     # sample_toy_dataset()
-    relabel(pd.read_csv(DATA_FILE), savename=True)
+    relabel(pd.read_csv(DATA_FILE), save_mapping=True)
     loader_train_sets, loader_val, loader_test, _ = load_dataset()
     sample = next(iter(loader_val))
     print(sample['image'].shape, sample['landmark_id'])

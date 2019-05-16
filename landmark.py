@@ -13,8 +13,8 @@ PRINT_EVERY = CONF.print_every
 
 
 class Landmark:
-    def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True,
-                 lr=1e-4, epochs=10, optim_params=None, params_to_update=None):
+    def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True, use_stage=False,
+                 lr=1e-4, epochs=10, optim_params={}, params_to_update=None):
         self.device = device
         self.vis = vis
         self.win_train_loss = None
@@ -28,10 +28,9 @@ class Landmark:
         self.modelname = modelname
 
         if params_to_update is None:
-            if pretrained:
+            self.params_to_update = self.model.parameters()
+            if pretrained and use_stage:
                 self.params_to_update = self.model.fc.parameters()
-            else:
-                self.params_to_update = self.model.parameters()
         else:
             self.params_to_update = params_to_update
 

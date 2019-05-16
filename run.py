@@ -18,6 +18,8 @@ parser.add_argument('-f', '--finetune', action="store_true",
                     help='Finetune the resnet50')
 parser.add_argument('--model-name', type=str, default="finetune",
                     help='The name of the finetune model')
+parser.add_argument('--use-stage', type=bool, default=False,
+                    help='Use 3 stage strategy to finetune')
 parser.add_argument('--stage-epoch', type=int, default=3,
                     help='The epoch to finetune the fc layers')
 parser.add_argument('--lr', type=float, default=1e-3,
@@ -39,7 +41,7 @@ else:
     device = torch.device('cpu')
 
 
-def finetune():
+def finetune_stage():
     """3-stage finetune
         Step 1: freeze parameters of backbone to extract features
         Step 2: train last three dense `Linear-Linear-Softmax` layers
@@ -54,6 +56,7 @@ def finetune():
     # Landmark object
     landmark = Landmark(modelname, load_dataset, vis,
                         pretrained=True,  # finetune
+                        use_stage=True,
                         device=device,
                         lr=args.lr,
                         epochs=args.tot_epochs,
@@ -88,9 +91,13 @@ def finetune():
         landmark.scheduler.step(landmark.best_acc)
 
 
-def run():
+def run(pretrain=True):
+    """
+       If pretraine is True, we tune All parameters.
+       Otehrwise, just train fresh model.
+    """
+
     # Load model
-    pretrained = False
     modelname = args.model_name
 
     # Visualization
@@ -98,11 +105,13 @@ def run():
 
     # Landmark object
     landmark = Landmark(modelname, load_dataset, vis,
-                        pretrained=False,
+                        pretrained=pretrain,  # determine finetune or not
+                        use_stage=False,
                         device=device,
                         lr=args.lr,
                         epochs=args.tot_epochs,
-                        batch_size=args.batch_size)
+                        batch_size=args.batch_size,
+                        optim_params=args.optim_params)
 
     print_basic_params(landmark)
 
@@ -122,7 +131,7 @@ def run():
 
 
 if __name__ == "__main__":
-    if args.finetune:
-        finetune()
+    if args.use_stage:
+        finetune_stage()
     else:
-        run()
+        run(args.finetune)
