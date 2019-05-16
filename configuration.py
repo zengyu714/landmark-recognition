@@ -8,7 +8,7 @@ CONF = EasyDict()
 
 # Data
 # ===================================================
-CONF.data_root = "/home/kimmy/dataset/"
+CONF.data_root = "../"
 CONF.toy_file = CONF.data_root + "train_toy.csv"
 CONF.data_file = CONF.data_root + "train.csv"
 CONF.training_toy_dataset = False
