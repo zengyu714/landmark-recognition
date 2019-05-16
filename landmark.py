@@ -6,28 +6,32 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from configuration import CONF
+from resnet import resnet50
 from utils.util import gap_accuracy
 
 PRINT_EVERY = CONF.print_every
 
 
 class Landmark:
-    def __init__(self, model, modelname, loader, vis, device, batch_size,
+    def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True,
                  lr=1e-4, epochs=10, optim_params=None, params_to_update=None):
         self.device = device
         self.vis = vis
         self.win_train_loss = None
         self.win_val_acc = None
 
-        self.model = model
-        self.modelname = modelname
-
         self.lr = lr
         self.batch_size = batch_size
-        self.loader_train_sets, self.loader_val, _ = loader(batch_size)
+        self.loader_train_sets, self.loader_val, _, num_classes = loader(batch_size)
+
+        self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
+        self.modelname = modelname
 
         if params_to_update is None:
-            self.params_to_update = model.parameters()
+            if pretrained:
+                self.params_to_update = self.model.fc.parameters()
+            else:
+                self.params_to_update = self.model.parameters()
         else:
             self.params_to_update = params_to_update
 
@@ -42,8 +46,7 @@ class Landmark:
             self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
                                        weight_decay=weight_decay)
         # factor lr by 0.1 in plateau
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='max', patience=4, cooldown=1,
-                                                              verbose=True)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=3, gamma=0.5)
 
         self.batch_nums = len(self.loader_val)
         self.best_acc = 0

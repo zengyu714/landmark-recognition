@@ -6,4 +6,4 @@
 - [x] training toy dataset.
 - [ ] **DeLF pipeline (with bbox)**
 - [ ] Optimize visdom (clear previous trash one)
-
+- [ ] **weight loss**

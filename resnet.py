@@ -254,8 +254,9 @@ def resnet50(pretrained=False, progress=True, **kwargs):
     if pretrained:
         model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
         num_features = model_ft.fc.in_features
-        model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
-                                     nn.Linear(num_features, kwargs['num_classes'])])
+        # model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
+        #                              nn.Linear(num_features, kwargs['num_classes'])])
+        model_ft.fc = nn.Linear(num_features, kwargs['num_classes'])
     else:
         model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
     return model_ft

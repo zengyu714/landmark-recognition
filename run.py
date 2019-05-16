@@ -1,3 +1,6 @@
+"""
+Based on ResNet50
+"""
 import argparse
 import json
 
@@ -6,7 +9,6 @@ from visdom import Visdom
 
 from data import load_dataset
 from landmark import Landmark
-from resnet import resnet50
 from utils.util import print_basic_params, unfreeze_resnet50_bottom
 
 parser = argparse.ArgumentParser(description='Google Landmark Recognition Challenge')
@@ -14,13 +16,17 @@ parser.add_argument('-g', '--cuda-device', type=int, default=0,
                     help='Choose which gpu to use (default: 0)')
 parser.add_argument('-f', '--finetune', action="store_true",
                     help='Finetune the resnet50')
-parser.add_argument('--lr', type=float, default=1e-2,
+parser.add_argument('--model-name', type=str, default="finetune",
+                    help='The name of the finetune model')
+parser.add_argument('--stage-epoch', type=int, default=3,
+                    help='The epoch to finetune the fc layers')
+parser.add_argument('--lr', type=float, default=1e-3,
                     help='learning rate')
 parser.add_argument('--optim-params', type=str, default='{"name": "adam"}',
                     help='The name of optimizer, default is adam')
-parser.add_argument('--tot-epochs', type=int, default=15,
+parser.add_argument('--tot-epochs', type=int, default=9,
                     help='Total training epochs')
-parser.add_argument('--batch-size', type=int, default=186,
+parser.add_argument('--batch-size', type=int, default=512,
                     help='Batch size')
 
 args = parser.parse_args()
@@ -33,25 +39,26 @@ else:
     device = torch.device('cpu')
 
 
-def finetune_resnet50():
+def finetune():
     """3-stage finetune
         Step 1: freeze parameters of backbone to extract features
         Step 2: train last three dense `Linear-Linear-Softmax` layers
         Step 3: train bottom 9 layers, starting from `conv4_x`
     """
 
-    model = resnet50(pretrained=True, num_classes=203094)
-    modelname = 'resnet50_finetune'
+    modelname = args.model_name
 
     # Visualization
     vis = Visdom(env=modelname)
 
     # Landmark object
-    landmark = Landmark(model, modelname, load_dataset, vis, device=device, epochs=args.tot_epochs,
+    landmark = Landmark(modelname, load_dataset, vis,
+                        pretrained=True,  # finetune
+                        device=device,
                         lr=args.lr,
+                        epochs=args.tot_epochs,
                         batch_size=args.batch_size,
-                        optim_params=args.optim_params,
-                        params_to_update=model.fc.parameters())
+                        optim_params=args.optim_params)
 
     print_basic_params(landmark)
 
@@ -63,8 +70,7 @@ def finetune_resnet50():
     landmark.model = landmark.model.to(device)  # move the model parameters to CPU/GPU
 
     # stage 1 - 3
-    stage_epoch = landmark.tot_epochs // 3
-    for e in range(stage_epoch):
+    for e in range(args.stage_epoch):
         landmark.cur_epoch = e + 1
         for loader_index in range(len(landmark.loader_train_sets)):
             landmark.train(loader_index)
@@ -73,7 +79,7 @@ def finetune_resnet50():
         landmark.scheduler.step(landmark.best_acc)
 
     unfreeze_resnet50_bottom(landmark)
-    for e in range(stage_epoch, landmark.tot_epochs):
+    for e in range(args.stage_epoch, landmark.tot_epochs):
         landmark.cur_epoch = e + 1
         for loader_index in range(len(landmark.loader_train_sets)):
             landmark.train(loader_index)
@@ -84,18 +90,20 @@ def finetune_resnet50():
 
 def run():
     # Load model
-    model = resnet50(pretrained=False, num_classes=203094)
-    modelname = 'resnet50'
+    pretrained = False
+    modelname = args.model_name
 
     # Visualization
     vis = Visdom(env=modelname)
 
     # Landmark object
-    landmark = Landmark(model, modelname, load_dataset, vis,
+    landmark = Landmark(modelname, load_dataset, vis,
+                        pretrained=False,
+                        device=device,
                         lr=args.lr,
-                        device=device, epochs=args.tot_epochs,
-                        batch_size=args.batch_size,
-                        optim_params=args.optim_params)
+                        epochs=args.tot_epochs,
+                        batch_size=args.batch_size)
+
     print_basic_params(landmark)
 
     try:
@@ -115,6 +123,6 @@ def run():
 
 if __name__ == "__main__":
     if args.finetune:
-        finetune_resnet50()
+        finetune()
     else:
         run()

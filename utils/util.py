@@ -3,10 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 
-from torch import optim
-
-from configuration import CONF
-
 
 def parse_info(df, idx, root):
     """
@@ -62,6 +58,6 @@ def gap_accuracy(pred, prob, true, return_df):
 def unfreeze_resnet50_bottom(landmark):
     # TODO: may tune learning rate
     for i, child in enumerate(landmark.model.children()):
-        # add three more modeuls to train
-        if i >= 6 and i < 9:
+        # add two more modeuls to train
+        if i in [6, 7, 9]:  # child 8 is Adaptive layer
             landmark.optimizer.add_param_group({'params': child.parameters()})
