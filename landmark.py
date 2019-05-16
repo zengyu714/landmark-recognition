@@ -10,11 +10,11 @@ from resnet import resnet50
 from utils.util import gap_accuracy
 
 PRINT_EVERY = CONF.print_every
-
+LEARNING_RATE = 1e-3
 
 class Landmark:
     def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True, use_stage=False,
-                 lr=1e-4, epochs=10, optim_params={}, params_to_update=None):
+                 lr=LEARNING_RATE, epochs=10, optim_params={}, params_to_update=None):
         self.device = device
         self.vis = vis
         self.win_train_loss = None

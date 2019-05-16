@@ -3,7 +3,7 @@ Ref: https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 """
 
 import torch.nn as nn
-
+import torchvision
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
@@ -243,7 +243,7 @@ def resnet34(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 
-def resnet50(pretrained=False, progress=True, **kwargs):
+def resnet50(pretrained=True, progress=True, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
@@ -252,11 +252,14 @@ def resnet50(pretrained=False, progress=True, **kwargs):
     """
 
     if pretrained:
-        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
-        num_features = model_ft.fc.in_features
-        # model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
-        #                              nn.Linear(num_features, kwargs['num_classes'])])
-        model_ft.fc = nn.Linear(num_features, kwargs['num_classes'])
+#        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
+#        num_features = model_ft.fc.in_features
+#        # model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
+#        #                              nn.Linear(num_features, kwargs['num_classes'])])
+#        model_ft.fc = nn.Linear(num_features, kwargs['num_classes'])
+        model_ft = torchvision.models.resnet50(pretrained=True)
+        model_ft.avg_pool = nn.AdaptiveAvgPool2d(1)
+        model_ft.fc = nn.Linear(model_ft.fc.in_features, kwargs['num_classes'])
     else:
         model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
     return model_ft

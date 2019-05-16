@@ -34,6 +34,7 @@ parser.add_argument('--batch-size', type=int, default=512,
 args = parser.parse_args()
 args.optim_params = json.loads(args.optim_params)
 
+
 if torch.cuda.is_available():
     torch.cuda.set_device(args.cuda_device)
     device = torch.cuda.current_device()
