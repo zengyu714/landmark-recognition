@@ -7,7 +7,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from configuration import CONF
-from resnet import resnet50
+from models.resnet import resnet50
+from models.se_resnet import se_resnet50
 from utils.util import gap_accuracy
 
 PRINT_EVERY = CONF.print_every
@@ -21,11 +22,17 @@ class Landmark:
         self.win_train_loss = None
         self.win_val_acc = None
 
+        self.use_stage = use_stage
+        self.pretrained = pretrained
+
         self.lr = lr
         self.batch_size = batch_size
         self.loader_train_sets, self.loader_val, _, num_classes = loader(batch_size)
 
-        self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
+        if modelname.startswith("senet"):
+            self.model = se_resnet50(pretrained=pretrained, num_classes=num_classes)
+        else:
+            self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
         self.modelname = modelname
 
         if params_to_update is None:

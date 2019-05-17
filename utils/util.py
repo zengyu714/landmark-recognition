@@ -21,6 +21,8 @@ def print_basic_params(landmark):
     print(f"- Current GPU device is {landmark.device}")
     print(f"- Optimizer is {landmark.optimizer}")
     print(f"- Batch size is {landmark.batch_size}")
+    print(f"- Load pretrained weights from ImageNet: {bool(landmark.pretrained)}")
+    print(f"- Use stage finetune strategy: {bool(landmark.use_stage)}")
 
 
 def gap_accuracy(pred, prob, true, return_df):

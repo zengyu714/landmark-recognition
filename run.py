@@ -40,8 +40,6 @@ if torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 
-print(args.use_stage)
-
 
 def finetune_stage():
     """3-stage finetune
@@ -57,7 +55,7 @@ def finetune_stage():
 
     # Landmark object
     landmark = Landmark(modelname, load_dataset, vis,
-                        pretrained=True,  # finetune
+                        pretrained=True,  # use pretrained model
                         use_stage=True,
                         device=device,
                         lr=args.lr,
@@ -136,5 +134,4 @@ if __name__ == "__main__":
     if args.use_stage:
         finetune_stage()
     else:
-        print("here")
         run(args.finetune)
