@@ -16,6 +16,7 @@ def parse_info(df, idx, root):
     return img_name, landmark_id
 
 
+
 def print_basic_params(landmark):
     print(f"*** Start training {landmark.modelname} for {landmark.tot_epochs} epochs...")
     print(f"- Current GPU device is {landmark.device}")
@@ -67,3 +68,4 @@ def unfreeze_resnet50_bottom(landmark):
             except ValueError:
                 print(f"Layer {i} is already exists")
                 continue
+

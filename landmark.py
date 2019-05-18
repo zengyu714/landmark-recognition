@@ -184,6 +184,3 @@ class Landmark:
         print(f"===> ===> Saving model in \"{savename}\" by {loader_index}-th training set "
               f"in epoch {self.cur_epoch} / {self.tot_epochs}...")
         torch.save(state, savename)
-
-    def submit(self):
-        pass

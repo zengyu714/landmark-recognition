@@ -26,6 +26,9 @@ DATA_FILE = CONF.data_file
 if CONF.training_toy_dataset:
     DATA_FILE = TOY_FILE
 
+SUBMISSION_FILE = CONF.submission_file
+SUBMISSION_ROOT = CONF.submission_root
+
 DATA_SPLIT = CONF.data_split
 IMAGE_SIZE = CONF.image_size
 MIN_SAMPLES = CONF.min_samples
@@ -76,7 +79,7 @@ def sample_toy_dataset(sample_size=2000, savename=TOY_FILE):
 
 def relabel(df, save_mapping=True):
     """
-    Save the relabeled csv.
+        Save the relabeled csv.
     """
     df.drop(columns='url', inplace=True)
     counts = df.landmark_id.value_counts()
@@ -89,8 +92,12 @@ def relabel(df, save_mapping=True):
     landmarks_frame.landmark_id = landmarks_frame.landmark_id.map(mapping_dict)
 
     savename = f"{CONF.data_root}/mapping.npy"
+    savename_inv = f"{CONF.data_root}/mapping_inv.npy"
     if save_mapping and os.path.exists(savename):
         np.save(savename, mapping_dict)
+        inv_dict = {v: k for k, v in mapping_dict.items()}
+        np.save(savename_inv, inv_dict)
+
     return num_classes, landmarks_frame
 
 
@@ -193,9 +200,73 @@ def load_dataset(batch_size=256):
     return loader_train_sets, loader_val, loader_test, num_classes
 
 
+def lm_collate_submit(batch):
+    image = torch.stack([item['image'] for item in batch if item is not None])
+    name = [item['name'] for item in batch if item is not None]
+
+    return {'image': image, 'name': name}
+
+
+class LandmarkDatasetSubmit(Dataset):
+    """Google landmark dataset
+    Ref: https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
+    """
+
+    def __init__(self, csv_file, root_dir):
+        """
+        csv_file(str) : path of csv file with url, file names and landmark_id
+        root_dir(str) : path of images folder
+        """
+        df = pd.read_csv(csv_file)
+        df.drop(columns='url', inplace=True)
+
+        self.num_tot = df.shape[0]
+        self.root_dir = root_dir
+
+        self.landmarks_frame = df
+        self.transform = transform_val
+
+    def __len__(self):
+        return self.num_tot
+
+    def __getitem__(self, idx):
+        img_name = str(self.landmarks_frame.iloc[idx]['id'])
+        img_path = os.path.join(self.root_dir, img_name + '.jpg')
+
+        try:
+            image = io.imread(img_path)
+        except (FileNotFoundError, OSError, IndexError, UserWarning):
+            # print(img_name)
+            return None
+
+        if self.transform:
+            try:
+                image = self.transform(T.ToPILImage()(image))
+            except (RuntimeError, ValueError):
+                # print(image.shape)
+                return None
+
+        return {'image': image, 'name': img_name}
+
+
+def load_dataset_submit(batch_size=256):
+    landmark_train_submit = LandmarkDatasetSubmit(csv_file=SUBMISSION_FILE, root_dir=SUBMISSION_ROOT)
+    loader_submit = DataLoader(landmark_train_submit, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
+                               collate_fn=lm_collate_submit,
+                               pin_memory=True)
+    return loader_submit
+
+
 if __name__ == "__main__":
     # sample_toy_dataset()
     relabel(pd.read_csv(DATA_FILE), save_mapping=True)
-    loader_train_sets, loader_val, loader_test, _ = load_dataset()
-    sample = next(iter(loader_val))
-    print(sample['image'].shape, sample['landmark_id'])
+
+    # Test training loader
+    # loader_train_sets, loader_val, loader_test, _ = load_dataset()
+    # sample = next(iter(loader_val))
+    # print(sample['image'].shape, sample['landmark_id'])
+
+    # Test submitting loader
+    loader_submit = load_dataset_submit()
+    sample = next(iter(loader_submit))
+    print(sample['image'].shape)
