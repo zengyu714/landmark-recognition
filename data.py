@@ -30,35 +30,44 @@ SUBMISSION_FILE = CONF.submission_file
 SUBMISSION_ROOT = CONF.submission_root
 
 DATA_SPLIT = CONF.data_split
-IMAGE_SIZE = CONF.image_size
 MIN_SAMPLES = CONF.min_samples
 
 NUM_TOTAL = CONF.num_total
 
 NUM_WORKERS = multiprocessing.cpu_count()
 
-transform_train = T.Compose([
-    # width = height
-    T.Resize(IMAGE_SIZE),
-    T.RandomHorizontalFlip(),
-    T.RandomChoice([
-        T.RandomResizedCrop(IMAGE_SIZE[0]),
-        T.ColorJitter(0.2, 0.2, 0.2, 0.2),
-        T.RandomAffine(degrees=15, translate=(0.2, 0.2),
-                       scale=(0.8, 1.2), shear=15,
-                       resample=Image.BILINEAR)]),
 
-    T.ToTensor(),
-    T.Normalize(mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]),
-])
+def load_transform(input_size=(64, 64)):
+    transform = {
+        'train': T.Compose([
+            # width = height
+            T.Resize(input_size),
+            T.RandomHorizontalFlip(),
+            T.RandomChoice([
+                T.RandomResizedCrop(input_size[0]),
+                T.ColorJitter(0.2, 0.2, 0.2, 0.2),
+                T.RandomAffine(degrees=15, translate=(0.2, 0.2),
+                               scale=(0.8, 1.2), shear=15,
+                               resample=Image.BILINEAR)]),
 
-transform_val = T.Compose([
-    T.Resize(IMAGE_SIZE),
-    T.ToTensor(),
-    T.Normalize(mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]),
-])
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]),
+        ]),
+        'val'  : T.Compose([
+            T.Resize(input_size),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]),
+        ]),
+        'test' : T.Compose([
+            T.Resize(input_size),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]),
+        ])
+    }
+    return transform
 
 
 def sample_toy_dataset(sample_size=2000, savename=TOY_FILE):
@@ -106,7 +115,7 @@ class LandmarkDataset(Dataset):
     Ref: https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     """
 
-    def __init__(self, csv_file, root_dir, stage, split=DATA_SPLIT):
+    def __init__(self, csv_file, root_dir, input_size, stage, split=DATA_SPLIT):
         """
         csv_file(str) : path of csv file with url, file names and landmark_id
         root_dir(str) : path of images folder
@@ -123,9 +132,7 @@ class LandmarkDataset(Dataset):
         self.root_dir = root_dir
         self.index = eval(f"self.{stage}_idx")
 
-        self.transform = transform_train
-        if stage in ['val', 'test']:
-            self.transform = transform_val
+        self.transform = load_transform(input_size)[stage]
 
     def __len__(self):
         return len(self.index)
@@ -178,8 +185,8 @@ def random_split(dataset, chunk_nums):
     return chunks + [Subset(dataset, indices[(chunk_nums - 1) * size:])]
 
 
-def load_dataset(batch_size=256):
-    landmark_train = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='train')
+def load_dataset(input_size, batch_size):
+    landmark_train = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='train', input_size=input_size)
     # "squeeze" the huge training dataset to make it save checkpoint / print logs timely
     # approximates 15
     chunk_nums = DATA_SPLIT['train'] // DATA_SPLIT['val']
@@ -188,11 +195,11 @@ def load_dataset(batch_size=256):
                                     collate_fn=lm_collate, pin_memory=True)
                          for landmark_train_subset in landmark_train_subsets]
 
-    landmark_val = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='val')
+    landmark_val = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='val', input_size=input_size)
     loader_val = DataLoader(landmark_val, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS,
                             collate_fn=lm_collate, pin_memory=True)
 
-    landmark_test = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='test')
+    landmark_test = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='test', input_size=input_size)
     loader_test = DataLoader(landmark_test, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
                              collate_fn=lm_collate, pin_memory=True)
 
@@ -212,7 +219,7 @@ class LandmarkDatasetSubmit(Dataset):
     Ref: https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     """
 
-    def __init__(self, csv_file, root_dir):
+    def __init__(self, csv_file, root_dir, input_size):
         """
         csv_file(str) : path of csv file with url, file names and landmark_id
         root_dir(str) : path of images folder
@@ -224,7 +231,7 @@ class LandmarkDatasetSubmit(Dataset):
         self.root_dir = root_dir
 
         self.landmarks_frame = df
-        self.transform = transform_val
+        self.transform = load_transform(input_size)['val']
 
     def __len__(self):
         return self.num_tot
@@ -249,8 +256,9 @@ class LandmarkDatasetSubmit(Dataset):
         return {'image': image, 'name': img_name}
 
 
-def load_dataset_submit(batch_size=256):
-    landmark_train_submit = LandmarkDatasetSubmit(csv_file=SUBMISSION_FILE, root_dir=SUBMISSION_ROOT)
+def load_dataset_submit(input_size, batch_size):
+    landmark_train_submit = LandmarkDatasetSubmit(csv_file=SUBMISSION_FILE, root_dir=SUBMISSION_ROOT,
+                                                  input_size=input_size)
     loader_submit = DataLoader(landmark_train_submit, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
                                collate_fn=lm_collate_submit,
                                pin_memory=True)
@@ -259,14 +267,14 @@ def load_dataset_submit(batch_size=256):
 
 if __name__ == "__main__":
     # sample_toy_dataset()
-    relabel(pd.read_csv(DATA_FILE), save_mapping=True)
+    # relabel(pd.read_csv(DATA_FILE), save_mapping=True)
 
     # Test training loader
-    # loader_train_sets, loader_val, loader_test, _ = load_dataset()
+    # loader_train_sets, loader_val, loader_test, _ = load_dataset((64, 64), 256)
     # sample = next(iter(loader_val))
     # print(sample['image'].shape, sample['landmark_id'])
 
     # Test submitting loader
-    loader_submit = load_dataset_submit()
+    loader_submit = load_dataset_submit((64, 64), 256)
     sample = next(iter(loader_submit))
     print(sample['image'].shape)

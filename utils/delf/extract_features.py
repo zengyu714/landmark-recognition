@@ -24,8 +24,6 @@ sys.path.append("../..")  # to import configuration
 
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
-
 import argparse
 import sys
 import time
@@ -48,22 +46,37 @@ _DELF_EXT = '.delf'
 
 # Pace to report extraction log.
 _STATUS_CHECK_ITERATIONS = 100
+# For parallel processing
+# _GROUP_NUMS = 3
+# _START_OFFSET = 1807900
+# _END_OFFSET = -1
+
+# To fix error when processing group 1
+_GROUP_NUMS = 1
+_START_OFFSET = 1807900 + 10100
+_END_OFFSET = 812581
 
 sess_config = tf.ConfigProto(allow_soft_placement=True)
 
 
-def _ReadImageList(data_root=CONF.data_root):
+def _ReadImageList(curr_idx, data_root=CONF.data_root):
     """Helper function to read image paths from data root.
 
     Args:
       data_root: Path to all images
+      curr_idx: 0, 1, 2..., GROUP_NUMS - 1
 
     Returns:
       image_paths: List of image paths.
     """
-    image_paths = glob(data_root + "**/*.jpg", recursive=True)
+    assert curr_idx < _GROUP_NUMS, f"Max index should be {_GROUP_NUMS - 1}"
+    image_paths = glob(data_root + "**/*.jpg", recursive=True)[_START_OFFSET:_END_OFFSET]
     # image_paths = [entry.rstrip() for entry in image_paths]
-    return image_paths
+    tot_nums = len(image_paths)
+    size = int(tot_nums // 3)
+    if curr_idx == _GROUP_NUMS - 1:
+        return image_paths[size * curr_idx:]
+    return image_paths[size * curr_idx: size * (curr_idx + 1)]
 
 
 def MakeExtractor(sess, config, import_scope=None):
@@ -116,11 +129,13 @@ def MakeExtractor(sess, config, import_scope=None):
 
 
 def main(unused_argv):
+    os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.cuda_device
+
     tf.logging.set_verbosity(tf.logging.INFO)
 
     # Read list of images.
     tf.logging.info('Reading list of images...')
-    image_paths = _ReadImageList()
+    image_paths = _ReadImageList(cmd_args.curr_idx)
     num_images = len(image_paths)
     tf.logging.info('done! Found %d images', num_images)
 
@@ -139,7 +154,10 @@ def main(unused_argv):
         filename_queue = tf.train.string_input_producer(image_paths, shuffle=False)
         reader = tf.WholeFileReader()
         _, value = reader.read(filename_queue)
-        image_tf = tf.image.decode_jpeg(value, channels=3)
+        image_tf = tf.image.decode_image(value, channels=3)
+        # image_tf = tf.cond(tf.image.is_jpeg(value),
+        #                    lambda: tf.image.decode_jpeg(value, channels=3, acceptable_fraction=0.5,
+        #                                                 try_recover_truncated=True), lambda: tf.no_op)
 
         with tf.Session(config=sess_config) as sess:
             init_op = tf.global_variables_initializer()
@@ -163,8 +181,10 @@ def main(unused_argv):
                             elapsed)
                     start = time.clock()
 
-                # # Get next image.
                 im = sess.run(image_tf)
+                if len(im.shape) == 4 or im.shape[-1] != 3:
+                    tf.logging.warning(f"{'*' * 15} Skipping image {i} which probably is a GIF or broken image")
+                    continue
 
                 # If descriptor already exists, skip its computation.
                 out_desc_filename = os.path.splitext(os.path.basename(
@@ -212,5 +232,19 @@ if __name__ == '__main__':
       Directory where DELF features will be written to. Each image's features
       will be written to a file with same name, and extension replaced by .delf.
       """)
+    parser.add_argument(
+            '--curr_idx',
+            type=int,
+            default=0,
+            help="""
+        The index of the group for the parallel processing
+        """)
+    parser.add_argument(
+            '--cuda_device',
+            type=str,
+            default="0",
+            help="""
+        The index of the GPU
+        """)
     cmd_args, unparsed = parser.parse_known_args()
     app.run(main=main, argv=[sys.argv[0]] + unparsed)

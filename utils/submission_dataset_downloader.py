@@ -10,9 +10,8 @@
 # resume a partially completed download. All images will be saved in the JPG
 # format with 90% compression quality.
 
-import sys, os, multiprocessing, csv
+import os, multiprocessing, csv
 import requests
-from PIL import Image
 
 try:
     from StringIO import StringIO

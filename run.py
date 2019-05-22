@@ -11,28 +11,35 @@ from data import load_dataset
 from landmark import Landmark
 from utils.util import print_basic_params, unfreeze_resnet50_bottom
 
-parser = argparse.ArgumentParser(description='Google Landmark Recognition Challenge')
+parser = argparse.ArgumentParser(description='Google Landmark Recognition Challenge 2019')
 parser.add_argument('-g', '--cuda-device', type=int, default=0,
                     help='Choose which gpu to use (default: 0)')
-parser.add_argument('-f', '--finetune', action="store_true",
-                    help='Finetune the resnet50')
-parser.add_argument('--model-name', type=str, default="finetune",
-                    help='The name of the finetune model')
+parser.add_argument('-p', '--pretrain', action="store_true",
+                    help='Finetune the model by loading pretrained weights')
+parser.add_argument('--modelname', type=str, default="seatt_untitled",
+                    help='The name of the model architecture')
+parser.add_argument('--nickname', type=str, default="seatt_untitled",
+                    help='The nickname of the model')
 parser.add_argument('--use-stage', type=int, default=0,
-                    help='Use 3 stage strategy to finetune')
+                    help='Use 3 stage strategy to finetune the model')
 parser.add_argument('--stage-epoch', type=int, default=3,
                     help='The epoch to finetune the fc layers')
 parser.add_argument('--lr', type=float, default=1e-3,
                     help='learning rate')
 parser.add_argument('--optim-params', type=str, default='{"name": "adam"}',
                     help='The name of optimizer, default is adam')
+parser.add_argument('--step-size', type=int, default=3,
+                    help='The epochs to factor the learning rate x 0.5')
 parser.add_argument('--tot-epochs', type=int, default=9,
                     help='Total training epochs')
 parser.add_argument('--batch-size', type=int, default=512,
                     help='Batch size')
+parser.add_argument('--input-size', type=int, default=64,
+                    help='Input image size')
 
 args = parser.parse_args()
 args.optim_params = json.loads(args.optim_params)
+args.input_size = (args.input_size, args.input_size)
 
 if torch.cuda.is_available():
     torch.cuda.set_device(args.cuda_device)
@@ -48,25 +55,28 @@ def finetune_stage():
         Step 3: train bottom 9 layers, starting from `conv4_x`
     """
 
-    modelname = args.model_name
+    modelname = args.modelname
+    nickname = args.nickname
 
     # Visualization
-    vis = Visdom(env=modelname)
+    vis = Visdom(env=nickname)
 
     # Landmark object
-    landmark = Landmark(modelname, load_dataset, vis,
+    landmark = Landmark(modelname, nickname, load_dataset, vis,
                         pretrained=True,  # use pretrained model
                         use_stage=True,
                         device=device,
                         lr=args.lr,
                         epochs=args.tot_epochs,
+                        step_size=args.step_size,
                         batch_size=args.batch_size,
+                        input_size=args.input_size,
                         optim_params=args.optim_params)
 
     print_basic_params(landmark)
 
     try:
-        landmark.resume(f"./checkpoints/{landmark.modelname}_best.ckpt")
+        landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
     except FileNotFoundError:
         pass
 
@@ -94,29 +104,31 @@ def finetune_stage():
 def run(pretrain=True):
     """
        If pretraine is True, we tune All parameters.
-       Otehrwise, just train fresh model.
+       Otehrwise, just train the brand new model.
     """
 
-    # Load model
-    modelname = args.model_name
+    modelname = args.modelname
+    nickname = args.nickname
 
     # Visualization
-    vis = Visdom(env=modelname)
+    vis = Visdom(env=nickname)
 
     # Landmark object
-    landmark = Landmark(modelname, load_dataset, vis,
+    landmark = Landmark(modelname, nickname, load_dataset, vis,
                         pretrained=pretrain,  # determine finetune or not
                         use_stage=False,
                         device=device,
                         lr=args.lr,
                         epochs=args.tot_epochs,
+                        step_size=args.step_size,
                         batch_size=args.batch_size,
+                        input_size=args.input_size,
                         optim_params=args.optim_params)
 
     print_basic_params(landmark)
 
     try:
-        landmark.resume(f"./checkpoints/{landmark.modelname}_best.ckpt")
+        landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
     except FileNotFoundError:
         pass
 
@@ -134,4 +146,4 @@ if __name__ == "__main__":
     if args.use_stage:
         finetune_stage()
     else:
-        run(args.finetune)
+        run(args.pretrain)

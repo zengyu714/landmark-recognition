@@ -21,7 +21,6 @@ CONF.submission_file = CONF.data_root + "test.csv"
 
 # 4132914 = 37123 (train) + 247975 (val) + 165316 (test)
 CONF.data_split = {'train': 0.9, 'val': 0.06, 'test': 0.04}
-CONF.image_size = (64, 64)
 CONF.min_samples = 50
 # filtered with 18k classes
 

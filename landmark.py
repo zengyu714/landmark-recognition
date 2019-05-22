@@ -9,38 +9,55 @@ import torch.optim as optim
 from configuration import CONF
 from models.resnet import resnet50
 from models.se_resnet import se_resnet50
+from models.seatt import *
 from utils.util import gap_accuracy
 
 PRINT_EVERY = CONF.print_every
 
 
 class Landmark:
-    def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True, use_stage=False,
-                 lr=1e-4, epochs=10, optim_params={}, params_to_update=None):
+    def __init__(self, modelname, nickname, loader, vis, device, batch_size, input_size,
+                 pretrained=True, use_stage=False, step_size=3, lr=1e-4, epochs=10, optim_params={}):
+        """
+        Args:
+            - modelname (str): The name of the model.
+                Currently we support: ['seatt154', 'seatt_base56', 'seatt_base92', 'seatt_resnext50_32x4d',
+                                       'seatt_resnet50', 'se_resnet50', 'resnet50']
+            - nickname (str): The name of this experiment. E.g., 'resnet50_foo', 'bar_seatt154'...
+            - vis (object): Handle of the visdom object
+            - device (int): The index of the device.
+            - batch_size (int): Mini batch size for a forward.
+            - input_size (tuple): Input image size.
+            - pretrained (bool):  If `True`, use pretrained weights fro ImageNet.
+            - use_stage (bool): If `True`, use three 3 stage finetune strategy.
+            - step_size (int): Step size (epoch) to factor the learning rate.
+            - lr (float): Learning rate.
+            - epochs (int): Number of total training epochs.
+            - optim_params (dict): The configuration of the optimizer.
+        """
         self.device = device
         self.vis = vis
         self.win_train_loss = None
         self.win_val_acc = None
+        self.nickname = nickname
 
         self.use_stage = use_stage
         self.pretrained = pretrained
 
         self.lr = lr
         self.batch_size = batch_size
-        self.loader_train_sets, self.loader_val, _, num_classes = loader(batch_size)
+        self.loader_train_sets, self.loader_val, _, num_classes = loader(input_size, batch_size)
 
-        if modelname.startswith("senet"):
-            self.model = se_resnet50(pretrained=pretrained, num_classes=num_classes)
+        try:
+            self.model = eval(modelname)(pretrained=pretrained, num_classes=num_classes)
+        except NameError:
+            print(f"No support for {modelname}")
+
+        if use_stage:
+            assert pretrained == True, "We need pretrained weights to use stage finetune strategy"
+            self.params_to_update = self.model.fc.parameters()
         else:
-            self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
-        self.modelname = modelname
-
-        if params_to_update is None:
             self.params_to_update = self.model.parameters()
-            if pretrained and use_stage:
-                self.params_to_update = self.model.fc.parameters()
-        else:
-            self.params_to_update = params_to_update
 
         optim_name = optim_params.get('name', 'adam')
 
@@ -52,8 +69,8 @@ class Landmark:
             weight_decay = optim_params.get('weight_decay', 5e-4)
             self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
                                        weight_decay=weight_decay)
-        # factor lr by 0.1 in plateau
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=3, gamma=0.5)
+        # factor lr by 0.5 in plateau
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=0.5)
 
         self.batch_nums = len(self.loader_val)
         self.best_acc = 0
@@ -156,7 +173,7 @@ class Landmark:
             }
             if not Path('checkpoints').exists():
                 Path('checkpoints').mkdir()
-            savename = f"./checkpoints/{self.modelname}_best.ckpt"
+            savename = f"./checkpoints/{self.nickname}_best.ckpt"
             print(f"===> ===> Saving model in \"{savename}\" with acc {100 * acc:.7f} "
                   f"in epoch {self.cur_epoch} / {self.tot_epochs}...")
             torch.save(state, savename)
@@ -169,8 +186,12 @@ class Landmark:
         self.model.load_state_dict(checkpoint['model'])
         self.best_acc = checkpoint['acc']
         self.cur_epoch = checkpoint['epoch']
-        print(f"*** Resume checkpoint from \"{self.modelname}\" "
-              f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
+        try:
+            print(f"*** Resume checkpoint from \"{self.nickname}\" "
+                  f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
+        except TypeError:
+            # If model doesn't have `best_acc` and `cur_epoch`
+            print(f"*** Resume checkpoint from \"{self.nickname}\"...")
 
     def save(self, loader_index):
         state = {
@@ -180,7 +201,7 @@ class Landmark:
         }
         if not Path('checkpoints').exists():
             Path('checkpoints').mkdir()
-        savename = f"./checkpoints/{self.modelname}_newest.ckpt"
+        savename = f"./checkpoints/{self.nickname}_newest.ckpt"
         print(f"===> ===> Saving model in \"{savename}\" by {loader_index}-th training set "
               f"in epoch {self.cur_epoch} / {self.tot_epochs}...")
         torch.save(state, savename)
