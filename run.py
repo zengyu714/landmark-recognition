@@ -138,4 +138,4 @@ if __name__ == "__main__":
         finetune_stage()
     else:
         print("here")
-        run(args.finetune)
+        run()
