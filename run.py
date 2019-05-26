@@ -11,6 +11,7 @@ from data import load_dataset
 from landmark import Landmark
 from utils.util import print_basic_params, unfreeze_resnet50_bottom
 
+
 parser = argparse.ArgumentParser(description='Google Landmark Recognition Challenge')
 parser.add_argument('-g', '--cuda-device', type=int, default=0,
                     help='Choose which gpu to use (default: 0)')
@@ -26,7 +27,7 @@ parser.add_argument('--lr', type=float, default=1e-3,
                     help='learning rate')
 parser.add_argument('--optim-params', type=str, default='{"name": "adam"}',
                     help='The name of optimizer, default is adam')
-parser.add_argument('--tot-epochs', type=int, default=9,
+parser.add_argument('--tot-epochs', type=int, default=20,
                     help='Total training epochs')
 parser.add_argument('--batch-size', type=int, default=512,
                     help='Batch size')
