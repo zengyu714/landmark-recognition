@@ -29,7 +29,7 @@ if CONF.training_toy_dataset:
 DATA_SPLIT = CONF.data_split
 IMAGE_SIZE = CONF.image_size
 MIN_SAMPLES = CONF.min_samples
-
+MAX_SAMPLES = CONF.max_samples
 NUM_TOTAL = CONF.num_total
 
 NUM_WORKERS = multiprocessing.cpu_count()
@@ -80,7 +80,7 @@ def relabel(df, save_mapping=True):
     """
     df.drop(columns='url', inplace=True)
     counts = df.landmark_id.value_counts()
-    selected_classes = counts[counts >= MIN_SAMPLES].index
+    selected_classes = counts[counts >= MIN_SAMPLES && counts<=MAX_SAMPLES].index
     num_classes = selected_classes.shape[0]
 
     landmarks_frame = df.loc[df.landmark_id.isin(selected_classes)].copy()
