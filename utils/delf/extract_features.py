@@ -37,7 +37,9 @@ from delf import delf_config_pb2
 from delf import feature_extractor
 from delf import feature_io
 from glob import glob
-from configuration import CONF
+from config import Config
+
+CONF = Config(data_root="/home/kimmy/dataset-96")
 
 cmd_args = None
 
@@ -51,15 +53,18 @@ _STATUS_CHECK_ITERATIONS = 100
 # _START_OFFSET = 1807900
 # _END_OFFSET = -1
 
-# To fix error when processing group 1
+# Extract test
 _GROUP_NUMS = 1
-_START_OFFSET = 1807900 + 10100
-_END_OFFSET = 812581
+_START_OFFSET = 0
+_END_OFFSET = -1
+
+_DO_THRESHOLD = True
+_THRE_IMAGE_LIST = os.path.join(CONF.data_root, "cls_list.txt")
 
 sess_config = tf.ConfigProto(allow_soft_placement=True)
 
 
-def _ReadImageList(curr_idx, data_root=CONF.data_root):
+def _ReadImageList(curr_idx):
     """Helper function to read image paths from data root.
 
     Args:
@@ -70,10 +75,17 @@ def _ReadImageList(curr_idx, data_root=CONF.data_root):
       image_paths: List of image paths.
     """
     assert curr_idx < _GROUP_NUMS, f"Max index should be {_GROUP_NUMS - 1}"
-    image_paths = glob(data_root + "**/*.jpg", recursive=True)[_START_OFFSET:_END_OFFSET]
-    # image_paths = [entry.rstrip() for entry in image_paths]
+
+    image_paths = glob(os.path.join(cmd_args.img_root, "**/*.jpg"), recursive=True)
+    if _DO_THRESHOLD:
+        with open(_THRE_IMAGE_LIST) as f:
+            lines = f.readlines()
+        limited = [os.path.join(cmd_args.img_root, '/'.join(l[:3]), l.rstrip()) for l in lines]
+        image_paths = list(set(limited).intersection(set(image_paths)))  # wired error otherwise
+
+    image_paths = image_paths[_START_OFFSET:_END_OFFSET]
     tot_nums = len(image_paths)
-    size = int(tot_nums // 3)
+    size = int(tot_nums // _GROUP_NUMS)
     if curr_idx == _GROUP_NUMS - 1:
         return image_paths[size * curr_idx:]
     return image_paths[size * curr_idx: size * (curr_idx + 1)]
@@ -155,10 +167,8 @@ def main(unused_argv):
         reader = tf.WholeFileReader()
         _, value = reader.read(filename_queue)
         image_tf = tf.image.decode_image(value, channels=3)
-        # image_tf = tf.cond(tf.image.is_jpeg(value),
-        #                    lambda: tf.image.decode_jpeg(value, channels=3, acceptable_fraction=0.5,
-        #                                                 try_recover_truncated=True), lambda: tf.no_op)
 
+        count = 0
         with tf.Session(config=sess_config) as sess:
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
@@ -181,7 +191,13 @@ def main(unused_argv):
                             elapsed)
                     start = time.clock()
 
-                im = sess.run(image_tf)
+                try:
+                    im = sess.run(image_tf)
+                except tf.errors.NotFoundError as e:
+                    count += 1
+                    tf.logging.warning(f"{'*' * 15} Decode error {e} - {count}")
+                    continue
+
                 if len(im.shape) == 4 or im.shape[-1] != 3:
                     tf.logging.warning(f"{'*' * 15} Skipping image {i} which probably is a GIF or broken image")
                     continue
@@ -191,7 +207,10 @@ def main(unused_argv):
                         image_paths[i]))[0] + _DELF_EXT
 
                 # modify this line
-                out_desc_parent_dir = os.path.join(CONF.delf_root, '/'.join(out_desc_filename[:3]))
+                out_desc_parent_dir = os.path.join(cmd_args.output_dir, '/'.join(out_desc_filename[:3]))
+                if 'test' in cmd_args.output_dir:
+                    out_desc_parent_dir = cmd_args.output_dir
+
                 if not os.path.exists(out_desc_parent_dir):
                     os.makedirs(out_desc_parent_dir)
 
@@ -227,11 +246,26 @@ if __name__ == '__main__':
     parser.add_argument(
             '--output_dir',
             type=str,
-            default=f'{CONF.delf_root}',
+            default=f'{CONF.train_delf}',
             help="""
       Directory where DELF features will be written to. Each image's features
       will be written to a file with same name, and extension replaced by .delf.
       """)
+    parser.add_argument(
+            '--img_root',
+            type=str,
+            default=f'{CONF.train_root}',
+            help="""
+      Directory where DELF features will be extracted, i.e., the root path 
+      to the images.
+      """)
+    parser.add_argument(
+            '--cls_root',
+            type=str,
+            default=f'{CONF.cls_root}',
+            help="""
+    The root path to the class.
+    """)
     parser.add_argument(
             '--curr_idx',
             type=int,

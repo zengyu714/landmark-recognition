@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from torch.utils import model_zoo
 from torch import nn
+from tqdm import tqdm
 
 
 def parse_info(df, idx, root):
@@ -13,7 +14,7 @@ def parse_info(df, idx, root):
     df_row = df.iloc[idx]
 
     img_id = str(df_row['id'])
-    img_name = os.path.join(root, '/'.join(img_id[:3]), img_id + '.jpg')
+    img_name = id_to_path(root, img_id)
     landmark_id = df_row.landmark_id
     return img_name, landmark_id
 
@@ -93,6 +94,32 @@ def load_pretrained_weights(model, weight_url, exclude_layers=None):
 
 def load_and_modify_pretrained_num_classes(model, model_url, new_num_classes):
     model = load_pretrained_weights(model, model_url)
-    num_features = model.last_linear.in_features
-    model.last_linear = nn.Linear(num_features, new_num_classes)
+    if any(i in model_url for i in ['senet', 'se_res']):
+        num_features = model.last_linear.in_features
+        model.last_linear = nn.Linear(num_features, new_num_classes)
+    else:
+        num_features = model.fc.in_features
+        model.fc = nn.Linear(num_features, new_num_classes)
     return model
+
+
+def group_landmarkid_by_class(img_root, out_cls_root, train_csv):
+    train_df = pd.read_csv(train_csv)
+    train_df.drop(columns='url', inplace=True)
+
+    groups = train_df.groupby(['landmark_id'])
+    for landmark_id, df_group in tqdm(groups):
+        # print(f"Processing landmark id {landmark_id}...")
+        img_ids = df_group['id']
+        img_names = [id + '.jpg\n' for id in img_ids]
+        cls_str = str(landmark_id).zfill(6)
+        cls_num = str(len(img_names)).zfill(5)
+        with open(os.path.join(out_cls_root, f"cls_{cls_str}_#_{cls_num}.txt"), 'w+') as f:
+            f.writelines(img_names)
+
+
+def id_to_path(img_root, img_id):
+    if not img_id.endswith(".jpg"):
+        img_id += ".jpg"
+    out_dir = os.path.join(img_root, '/'.join(img_id[:3]), img_id)
+    return out_dir

@@ -11,12 +11,12 @@ from .senet import SEBottleneck, SEResNeXtBottleneck, SEResNetBottleneck
 from utils.util import load_and_modify_pretrained_num_classes
 
 __all__ = ['SeAtt', 'seatt154', 'seatt_base56', 'seatt_base92',
-           'seatt_resnext50_32x4d', 'seatt_resnet50']
+           'seatt_resnext50_32x4d', 'seatt_resnet50', 'seatt_resnext50_base']
 
 model_urls = {
-    'se_resnext50_32x4d': 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth',
-    'seatt_resnet50'    : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth',
-    'se154'             : 'http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth',
+    'se_resnext50_32x4d' : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth',
+    'seatt_resnet50'     : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth',
+    'se154'              : 'http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth',
 }
 
 
@@ -181,6 +181,18 @@ def seatt154(pretrained=True, **kwargs):
 
 def seatt_resnext50_32x4d(pretrained=True, **kwargs):
     model = SeAtt(block=SEResNeXtBottleneck, layers=[3, 4, 6, 3], att_layers=[1, 2, 3], groups=32, reduction=16,
+                  dropout_p=None, inplanes=64, input_3x3=False,
+                  downsample_kernel_size=1, downsample_padding=0)
+    if pretrained:
+        model = load_and_modify_pretrained_num_classes(model, model_urls['se_resnext50_32x4d'], kwargs['num_classes'])
+    return model
+
+
+def seatt_resnext50_base(pretrained=True, **kwargs):
+    """
+    The difference with `seatt_resnext50_32x4d` is the number of attention module layer
+    """
+    model = SeAtt(block=SEResNeXtBottleneck, layers=[3, 4, 6, 3], att_layers=[1, 1, 1], groups=32, reduction=16,
                   dropout_p=None, inplanes=64, input_3x3=False,
                   downsample_kernel_size=1, downsample_padding=0)
     if pretrained:

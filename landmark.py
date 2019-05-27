@@ -6,13 +6,13 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from configuration import CONF
-from models.resnet import resnet50
+from config import Config
+from models.resnet import resnet50, resnext50_32x4d
 from models.se_resnet import se_resnet50
 from models.seatt import *
 from utils.util import gap_accuracy
 
-PRINT_EVERY = CONF.print_every
+PRINT_EVERY = Config().print_every
 
 
 class Landmark:
@@ -22,7 +22,7 @@ class Landmark:
         Args:
             - modelname (str): The name of the model.
                 Currently we support: ['seatt154', 'seatt_base56', 'seatt_base92', 'seatt_resnext50_32x4d',
-                                       'seatt_resnet50', 'se_resnet50', 'resnet50']
+                                       'seatt_resnet50', 'se_resnet50', 'resnet50', 'seatt_resnext50_base']
             - nickname (str): The name of this experiment. E.g., 'resnet50_foo', 'bar_seatt154'...
             - vis (object): Handle of the visdom object
             - device (int): The index of the device.
@@ -52,6 +52,7 @@ class Landmark:
             self.model = eval(modelname)(pretrained=pretrained, num_classes=num_classes)
         except NameError:
             print(f"No support for {modelname}")
+            exit(1)
 
         if use_stage:
             assert pretrained == True, "We need pretrained weights to use stage finetune strategy"
@@ -184,8 +185,8 @@ class Landmark:
             print(f"\"{ckpt_path}\" not found...")
         checkpoint = torch.load(ckpt_path)
         self.model.load_state_dict(checkpoint['model'])
-        self.best_acc = checkpoint['acc']
-        self.cur_epoch = checkpoint['epoch']
+        self.best_acc = checkpoint.get('acc', 0)
+        self.cur_epoch = checkpoint.get('epoch', 1)
         try:
             print(f"*** Resume checkpoint from \"{self.nickname}\" "
                   f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")

@@ -4,19 +4,25 @@ Ref: https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 
 import torch.nn as nn
 
+from utils.util import load_and_modify_pretrained_num_classes
+
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
+
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d']
 
 model_urls = {
-    'resnet18' : 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-    'resnet34' : 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-    'resnet50' : 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+    'resnet18'        : 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+    'resnet34'        : 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+    'resnet50'        : 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101'       : 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+    'resnet152'       : 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+    'resnext50_32x4d' : 'https://download.pytorch.org/models/resnext50_32x4d-7cdf4587.pth',
+    'resnext101_32x8d': 'https://download.pytorch.org/models/resnext101_32x8d-8ba56ff5.pth',
+
 }
 
 
@@ -250,16 +256,10 @@ def resnet50(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-
+    model = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
     if pretrained:
-        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
-        num_features = model_ft.fc.in_features
-        # model_ft.fc = nn.ModuleList([*[nn.Linear(num_features, num_features), nn.ReLU()] * 2,
-        #                              nn.Linear(num_features, kwargs['num_classes'])])
-        model_ft.fc = nn.Linear(num_features, kwargs['num_classes'])
-    else:
-        model_ft = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
-    return model_ft
+        model = load_and_modify_pretrained_num_classes(model, model_urls['resnet50'], kwargs['num_classes'])
+    return model
 
 
 def resnet101(pretrained=False, progress=True, **kwargs):
@@ -284,11 +284,12 @@ def resnet152(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 
-def resnext50_32x4d(**kwargs):
-    kwargs['groups'] = 32
-    kwargs['width_per_group'] = 4
-    return _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3],
-                   pretrained=False, progress=True, **kwargs)
+def resnext50_32x4d(pretrained=True, progress=True, **kwargs):
+    model = _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3], groups=32, width_per_group=4,
+                    pretrained=pretrained, progress=progress)
+    if pretrained:
+        model = load_and_modify_pretrained_num_classes(model, model_urls['resnext50_32x4d'], kwargs['num_classes'])
+    return model
 
 
 def resnext101_32x8d(**kwargs):

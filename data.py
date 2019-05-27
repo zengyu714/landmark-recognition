@@ -17,17 +17,21 @@ import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms as T
 
-from configuration import CONF
+from config import Config
 from utils.util import parse_info
 
+CONF = Config(data_root="/home/kimmy/dataset")
 DATA_ROOT = CONF.data_root
-TOY_FILE = CONF.toy_file
-DATA_FILE = CONF.data_file
-if CONF.training_toy_dataset:
-    DATA_FILE = TOY_FILE
 
-SUBMISSION_FILE = CONF.submission_file
-SUBMISSION_ROOT = CONF.submission_root
+TRAIN_FILE = CONF.train_file
+TRAIN_ROOT = CONF.train_root
+
+TEST_FILE = CONF.test_file
+TEST_ROOT = CONF.test_root
+
+TOY_FILE = CONF.toy_file
+if CONF.training_toy_dataset:
+    TRAIN_FILE = TOY_FILE
 
 DATA_SPLIT = CONF.data_split
 MIN_SAMPLES = CONF.min_samples
@@ -37,7 +41,7 @@ NUM_TOTAL = CONF.num_total
 NUM_WORKERS = multiprocessing.cpu_count()
 
 
-def load_transform(input_size=(64, 64)):
+def load_transform(input_size=(96, 96)):
     transform = {
         'train': T.Compose([
             # width = height
@@ -186,7 +190,7 @@ def random_split(dataset, chunk_nums):
 
 
 def load_dataset(input_size, batch_size):
-    landmark_train = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='train', input_size=input_size)
+    landmark_train = LandmarkDataset(csv_file=TRAIN_FILE, root_dir=TRAIN_ROOT, stage='train', input_size=input_size)
     # "squeeze" the huge training dataset to make it save checkpoint / print logs timely
     # approximates 15
     chunk_nums = DATA_SPLIT['train'] // DATA_SPLIT['val']
@@ -195,11 +199,11 @@ def load_dataset(input_size, batch_size):
                                     collate_fn=lm_collate, pin_memory=True)
                          for landmark_train_subset in landmark_train_subsets]
 
-    landmark_val = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='val', input_size=input_size)
+    landmark_val = LandmarkDataset(csv_file=TRAIN_FILE, root_dir=TRAIN_ROOT, stage='val', input_size=input_size)
     loader_val = DataLoader(landmark_val, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS,
                             collate_fn=lm_collate, pin_memory=True)
 
-    landmark_test = LandmarkDataset(csv_file=DATA_FILE, root_dir=DATA_ROOT, stage='test', input_size=input_size)
+    landmark_test = LandmarkDataset(csv_file=TRAIN_FILE, root_dir=TRAIN_ROOT, stage='test', input_size=input_size)
     loader_test = DataLoader(landmark_test, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
                              collate_fn=lm_collate, pin_memory=True)
 
@@ -257,7 +261,7 @@ class LandmarkDatasetSubmit(Dataset):
 
 
 def load_dataset_submit(input_size, batch_size):
-    landmark_train_submit = LandmarkDatasetSubmit(csv_file=SUBMISSION_FILE, root_dir=SUBMISSION_ROOT,
+    landmark_train_submit = LandmarkDatasetSubmit(csv_file=TEST_FILE, root_dir=TEST_ROOT,
                                                   input_size=input_size)
     loader_submit = DataLoader(landmark_train_submit, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
                                collate_fn=lm_collate_submit,
@@ -267,14 +271,14 @@ def load_dataset_submit(input_size, batch_size):
 
 if __name__ == "__main__":
     # sample_toy_dataset()
-    # relabel(pd.read_csv(DATA_FILE), save_mapping=True)
+    # relabel(pd.read_csv(TRAIN_FILE), save_mapping=True)
 
-    # Test training loader
-    # loader_train_sets, loader_val, loader_test, _ = load_dataset((64, 64), 256)
-    # sample = next(iter(loader_val))
-    # print(sample['image'].shape, sample['landmark_id'])
+    print("Test training loader...")
+    loader_train_sets, loader_val, loader_test, _ = load_dataset((96, 96), 16)
+    sample = next(iter(loader_val))
+    print(sample['image'].shape, sample['landmark_id'])
 
-    # Test submitting loader
-    loader_submit = load_dataset_submit((64, 64), 256)
+    print("Test submitting loader...")
+    loader_submit = load_dataset_submit((96, 96), 256)
     sample = next(iter(loader_submit))
     print(sample['image'].shape)

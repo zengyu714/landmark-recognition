@@ -26,7 +26,7 @@ parser.add_argument('--stage-epoch', type=int, default=3,
                     help='The epoch to finetune the fc layers')
 parser.add_argument('--lr', type=float, default=1e-3,
                     help='learning rate')
-parser.add_argument('--optim-params', type=str, default='{"name": "adam"}',
+parser.add_argument('--optim-params', type=json.loads, default='{"name": "adam"}',
                     help='The name of optimizer, default is adam')
 parser.add_argument('--step-size', type=int, default=3,
                     help='The epochs to factor the learning rate x 0.5')
@@ -38,7 +38,6 @@ parser.add_argument('--input-size', type=int, default=64,
                     help='Input image size')
 
 args = parser.parse_args()
-args.optim_params = json.loads(args.optim_params)
 args.input_size = (args.input_size, args.input_size)
 
 if torch.cuda.is_available():
@@ -128,7 +127,8 @@ def run(pretrain=True):
     print_basic_params(landmark)
 
     try:
-        landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
+        # landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
+        landmark.resume(f"./checkpoints/{landmark.nickname}_newest.ckpt")
     except FileNotFoundError:
         pass
 
