@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.utils.model_zoo as model_zoo
-
+import torchvision.models as models
 
 __all__ = ['SqueezeNet', 'squeezenet1_0', 'squeezenet1_1']
 
@@ -125,9 +125,8 @@ def squeezenet1_1(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = SqueezeNet(version=1.1, **kwargs)
+    model = SqueezeNet(version=1.1, num_classes=kwargs['num_classes'], **kwargs)  # kwargs['num_classes']
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['squeezenet1_1']))
-        model.avg_pool = nn.AdaptiveAvgPool2d(1)
-        model.fc = nn.Linear(model.fc.in_features, kwargs['num_classes'])
+        # model = models.shufflenetv2(pretrained=pretrained)
     return model

@@ -5,7 +5,7 @@ import argparse
 import json
 
 import torch
-from visdom import Visdom
+# from visdom import Visdom
 
 from data import load_dataset
 from landmark import Landmark
@@ -105,7 +105,7 @@ def run(pretrain=True):
     modelname = args.model_name
 
     # Visualization
-    vis = Visdom(env=modelname)
+    # vis = Visdom(env=modelname)
 
     # Landmark object
     landmark = Landmark(modelname, load_dataset, vis,
@@ -131,7 +131,7 @@ def run(pretrain=True):
             landmark.train(loader_index)
             landmark.save(loader_index)
         landmark.val()
-        landmark.scheduler.step()
+        # landmark.scheduler.step()
 
 
 if __name__ == "__main__":

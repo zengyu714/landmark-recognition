@@ -80,7 +80,7 @@ def relabel(df, save_mapping=True):
     """
     df.drop(columns='url', inplace=True)
     counts = df.landmark_id.value_counts()
-    selected_classes = counts[counts >= MIN_SAMPLES && counts<=MAX_SAMPLES].index
+    selected_classes = counts[(counts >= MIN_SAMPLES) and (counts<=MAX_SAMPLES)].index
     num_classes = selected_classes.shape[0]
 
     landmarks_frame = df.loc[df.landmark_id.isin(selected_classes)].copy()
@@ -89,7 +89,7 @@ def relabel(df, save_mapping=True):
     landmarks_frame.landmark_id = landmarks_frame.landmark_id.map(mapping_dict)
 
     savename = f"{CONF.data_root}/mapping.npy"
-    if save_mapping and os.path.exists(savename):
+    if save_mapping and not os.path.exists(savename):
         np.save(savename, mapping_dict)
     return num_classes, landmarks_frame
 
