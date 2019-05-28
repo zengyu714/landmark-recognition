@@ -108,7 +108,7 @@ def run(pretrain=True):
     # vis = Visdom(env=modelname)
 
     # Landmark object
-    landmark = Landmark(modelname, load_dataset, vis,
+    landmark = Landmark(modelname, load_dataset,
                         pretrained=pretrain,  # determine finetune or not
                         use_stage=False,
                         device=device,

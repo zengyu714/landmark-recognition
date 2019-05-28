@@ -125,8 +125,16 @@ def squeezenet1_1(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = SqueezeNet(version=1.1, num_classes=kwargs['num_classes'], **kwargs)  # kwargs['num_classes']
+   #    # print(model)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['squeezenet1_1']))
-        # model = models.shufflenetv2(pretrained=pretrained)
-    return model
+        model = models.squeezenet1_1(pretrained=True)
+        #model.load_state_dict(model_zoo.load_url(model_urls['squeezenet1_1']))
+        final_conv = nn.Conv2d(512, kwargs['num_classes'], kernel_size=1)
+        model.classifier = nn.Sequential(
+             nn.Dropout(p=0.5),
+             final_conv,
+             nn.ReLU(inplace=True),
+             nn.AvgPool2d(13, stride=1)
+         )
+        print(model)
+        return model

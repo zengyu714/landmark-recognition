@@ -16,10 +16,9 @@ PRINT_EVERY = CONF.print_every
 LEARNING_RATE = 1e-3
 
 class Landmark:
-    def __init__(self, modelname, loader, vis, device, batch_size, pretrained=True, use_stage=False,
+    def __init__(self, modelname, loader, device, batch_size, pretrained=True, use_stage=False,
                  lr=LEARNING_RATE, epochs=20, optim_params={}, params_to_update=None):
         self.device = device
-        self.vis = vis
         self.win_train_loss = None
         self.win_val_acc = None
 

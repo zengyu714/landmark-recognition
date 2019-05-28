@@ -8,9 +8,9 @@ CONF = EasyDict()
 
 # Data
 # ===================================================
-CONF.data_root = "../"
-CONF.toy_file = CONF.data_root + "train_toy.csv"
+CONF.data_root = "../../"
 CONF.data_file = CONF.data_root + "train.csv"
+CONF.toy_file = CONF.data_root + "train_toy.csv"
 CONF.training_toy_dataset = False
 
 # 4132914 = 37123 (train) + 247975 (val) + 165316 (test)
