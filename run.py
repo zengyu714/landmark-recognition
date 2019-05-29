@@ -127,8 +127,8 @@ def run(pretrain=True):
     print_basic_params(landmark)
 
     try:
-        # landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
-        landmark.resume(f"./checkpoints/{landmark.nickname}_newest.ckpt")
+        landmark.resume(f"./checkpoints/{landmark.nickname}_best.ckpt")
+        # landmark.resume(f"./checkpoints/{landmark.nickname}_newest.ckpt")
     except FileNotFoundError:
         pass
 
@@ -139,7 +139,8 @@ def run(pretrain=True):
             landmark.train(loader_index)
             landmark.save(loader_index)
         landmark.val()
-        landmark.scheduler.step()
+        if landmark.scheduler:
+            landmark.scheduler.step()
 
 
 if __name__ == "__main__":

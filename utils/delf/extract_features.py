@@ -49,14 +49,7 @@ _DELF_EXT = '.delf'
 # Pace to report extraction log.
 _STATUS_CHECK_ITERATIONS = 100
 # For parallel processing
-# _GROUP_NUMS = 3
-# _START_OFFSET = 1807900
-# _END_OFFSET = -1
-
-# Extract test
-_GROUP_NUMS = 1
-_START_OFFSET = 0
-_END_OFFSET = -1
+_GROUP_NUMS = 2
 
 _DO_THRESHOLD = True
 _THRE_IMAGE_LIST = os.path.join(CONF.data_root, "cls_list.txt")
@@ -77,13 +70,16 @@ def _ReadImageList(curr_idx):
     assert curr_idx < _GROUP_NUMS, f"Max index should be {_GROUP_NUMS - 1}"
 
     image_paths = glob(os.path.join(cmd_args.img_root, "**/*.jpg"), recursive=True)
-    if _DO_THRESHOLD:
+    exist_delfs = glob(os.path.join(cmd_args.output_dir, "**/*.delf"), recursive=True)
+    exist_delfs = [i.replace('.delf', '.jpg').replace(cmd_args.output_dir, cmd_args.img_root) for i in exist_delfs]
+    image_paths = list(set(image_paths).difference(set(exist_delfs)))
+
+    if "train" in cmd_args.img_root and _DO_THRESHOLD:
         with open(_THRE_IMAGE_LIST) as f:
             lines = f.readlines()
         limited = [os.path.join(cmd_args.img_root, '/'.join(l[:3]), l.rstrip()) for l in lines]
         image_paths = list(set(limited).intersection(set(image_paths)))  # wired error otherwise
 
-    image_paths = image_paths[_START_OFFSET:_END_OFFSET]
     tot_nums = len(image_paths)
     size = int(tot_nums // _GROUP_NUMS)
     if curr_idx == _GROUP_NUMS - 1:
@@ -158,7 +154,7 @@ def main(unused_argv):
 
     # Create output directory if necessary.
     if not os.path.exists(cmd_args.output_dir):
-        os.makedirs(cmd_args.output_dir)
+        os.makedirs(cmd_args.output_dir, exist_ok=True)
 
     # Tell TensorFlow that the model will be built into the default Graph.
     with tf.Graph().as_default():
@@ -203,14 +199,8 @@ def main(unused_argv):
                     continue
 
                 # If descriptor already exists, skip its computation.
-                out_desc_filename = os.path.splitext(os.path.basename(
-                        image_paths[i]))[0] + _DELF_EXT
-
-                # modify this line
+                out_desc_filename = os.path.splitext(os.path.basename(image_paths[i]))[0] + _DELF_EXT
                 out_desc_parent_dir = os.path.join(cmd_args.output_dir, '/'.join(out_desc_filename[:3]))
-                if 'test' in cmd_args.output_dir:
-                    out_desc_parent_dir = cmd_args.output_dir
-
                 if not os.path.exists(out_desc_parent_dir):
                     os.makedirs(out_desc_parent_dir)
 
@@ -246,7 +236,8 @@ if __name__ == '__main__':
     parser.add_argument(
             '--output_dir',
             type=str,
-            default=f'{CONF.train_delf}',
+            # default=f'{CONF.train_delf}',
+            default=f'{CONF.test_delf}',
             help="""
       Directory where DELF features will be written to. Each image's features
       will be written to a file with same name, and extension replaced by .delf.
@@ -254,7 +245,8 @@ if __name__ == '__main__':
     parser.add_argument(
             '--img_root',
             type=str,
-            default=f'{CONF.train_root}',
+            # default=f'{CONF.train_root}',
+            default=f'{CONF.test_root}',
             help="""
       Directory where DELF features will be extracted, i.e., the root path 
       to the images.

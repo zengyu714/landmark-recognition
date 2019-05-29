@@ -37,7 +37,7 @@ class Config:
 
         # Delf
         # ===================================================
-        self.train_delf = self.data_root + "train_delf/"
-        self.test_delf_root = self.data_root + "test_delf/"
-        self.cls_root = self.data_root + "cls/"
+        self.train_delf = os.path.join(self.data_root, "train_delf")
+        self.test_delf = os.path.join(self.data_root, "test_delf")
+        self.cls_root = os.path.join(self.data_root, "cls")
         # ===================================================

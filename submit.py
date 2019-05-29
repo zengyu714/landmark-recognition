@@ -9,7 +9,8 @@ import torch.nn.functional as F
 
 from data import load_dataset_submit
 from models.resnet import resnet50
-from utils.delf.match_images import delf_master
+from models.seatt import seatt_resnext50_base
+from utils.delf.matching import DeLF
 from config import Config
 
 CONF = Config(data_root="/home/kimmy/dataset-96")
@@ -25,14 +26,23 @@ if torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 
-CHECKPOINT_PATH = os.path.join(CONF.ckpt_root, "finetune_all_best.ckpt")
+curr_model = seatt_resnext50_base
+
+CHECKPOINT_PATH = os.path.join(CONF.ckpt_root, "seatt_111_best.ckpt")
 INV_MAPPING_PATH = os.path.join(CONF.data_root, "mapping_inv.npy")
 SAMPLE_PATH = os.path.join(CONF.data_root, "recognition_sample_submission.csv")
 
-TEST_DELF = "/home/kimmy/dataset-96/test_delf"
-CLS_ROOT = "/home/kimmy/dataset-96/cls"
+TRAIN_DELF = CONF.train_delf
+TEST_DELF = CONF.test_delf
+CLS_ROOT = CONF.cls_root
 
 OUT_PATH = os.path.join(CONF.submit_root, "submission.csv")
+OUT_DELF_PATH = f"{OUT_PATH[:-4]}_delf.csv"
+THRESHOLD = 0.4
+
+FILTERED_ROOT = os.path.join(CONF.data_root, "filtered")
+if not os.path.exists(FILTERED_ROOT):
+    os.makedirs(FILTERED_ROOT)
 
 
 def gen_submission(loader_submit, model, inv_mapping, savename):
@@ -68,6 +78,8 @@ def gen_submission(loader_submit, model, inv_mapping, savename):
                 now = datetime.now().strftime('%m-%d %H:%M:%S')
                 print(f"[{now}] Inferring {i} / {tot} [{counts} / {submit_csv.shape[0]}] ...")
 
+    now = datetime.now().strftime('%m%d%H%M%S')
+    savename = f"{savename[:-4]}_{now}.csv"
     df = pd.DataFrame.from_dict(results)
     df = df.set_index('id')
     submit_csv.update(df)
@@ -76,33 +88,32 @@ def gen_submission(loader_submit, model, inv_mapping, savename):
     return df
 
 
-def do_delf(submission_df, delf_savename, test_delf, cls_root):
-    delf_csv = delf_master(submission_df, test_delf, cls_root)
-    delf_csv.to_csv(delf_savename)
-    print(f"Saved {delf_savename} filtered by delf")
-
-
 def load_checkpoint(model, ckpt_path):
     checkpoint = torch.load(ckpt_path)
     model.load_state_dict(checkpoint['model'])
     return model
 
 
-def submit(only_delf=False):
-    if only_delf:
-        assert os.path.exists(OUT_PATH), "No submission file to do delf"
-        sub_df = pd.read_csv(OUT_PATH)
-        do_delf(sub_df, f"{OUT_PATH[:-4]}_delf.csv", TEST_DELF, CLS_ROOT)
-    else:
-        loader_submit = load_dataset_submit(batch_size=512)
+def submit():
+    loader_submit = load_dataset_submit(root_dir=CONF.test_root, csv_file=CONF.test_file, input_size=(96, 96),
+                                        batch_size=512, num_workers=4)
 
-        inv_mapping = np.load(INV_MAPPING_PATH).item()
-        num_classes = len(inv_mapping.keys())
-        model = load_checkpoint(resnet50(pretrained=False, num_classes=num_classes), CHECKPOINT_PATH)
+    inv_mapping = np.load(INV_MAPPING_PATH).item()
+    num_classes = len(inv_mapping.keys())
+    model = load_checkpoint(curr_model(pretrained=True, num_classes=num_classes), CHECKPOINT_PATH)
 
-        sub_df = gen_submission(loader_submit, model, inv_mapping, savename=OUT_PATH)
-        do_delf(sub_df, f"{OUT_PATH[:-4]}_delf.csv", TEST_DELF, CLS_ROOT)
+    sub_df = gen_submission(loader_submit, model, inv_mapping, savename=OUT_PATH)
+    return sub_df
+
+
+def do_delf(submission_path, delf_savename):
+    delf = DeLF(submission_path,
+                test_delf_root=TEST_DELF, train_delf_root=TRAIN_DELF,
+                cls_root=CLS_ROOT, filtered_root=FILTERED_ROOT, conf_threshold=THRESHOLD)
+    delf.master()
+    delf.gen_filtered_submission(delf_savename)
 
 
 if __name__ == "__main__":
-    submit(only_delf=True)
+    # sub_df = submit()
+    do_delf(OUT_PATH, OUT_DELF_PATH)

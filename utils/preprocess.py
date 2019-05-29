@@ -57,7 +57,7 @@ def standardize_image_paths(img_path):
 def resize_master(in_dir, out_dir):
     img_paths = glob(os.path.join(in_dir, "**/*.jpg"), recursive=True)
     out_paths = [p.replace(in_dir, out_dir) for p in img_paths]
-    out_paths = [standardize_image_paths(p) for p in out_paths]
+    # out_paths = [standardize_image_paths(p) for p in out_paths]
 
     try:
         Parallel(n_jobs=-1, verbose=1)(
@@ -69,5 +69,5 @@ def resize_master(in_dir, out_dir):
 
 
 if __name__ == "__main__":
-    # resize_master(in_dir="/home/kimmy/dataset-256/test", out_dir="/home/kimmy/dataset-96/test")
-    resize_master(in_dir="/home/kimmy/dataset-256/train", out_dir="/home/kimmy/dataset-96/train")
+    resize_master(in_dir="/home/kimmy/dataset-256/test", out_dir="/home/kimmy/dataset-96/test")
+    # resize_master(in_dir="/home/kimmy/dataset-256/train", out_dir="/home/kimmy/dataset-96/train")

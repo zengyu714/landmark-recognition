@@ -18,7 +18,7 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms as T
 
 from config import Config
-from utils.util import parse_info
+from utils.util import parse_info, id_to_path
 
 CONF = Config(data_root="/home/kimmy/dataset")
 DATA_ROOT = CONF.data_root
@@ -80,8 +80,7 @@ def sample_toy_dataset(sample_size=2000, savename=TOY_FILE):
         sample_size: # of sampled classes
     """
 
-    train_csv_path = "/home/dataset/train.csv"
-    df = pd.read_csv(train_csv_path)
+    df = pd.read_csv(TRAIN_FILE)
 
     counter = df.landmark_id.value_counts()
     landmark_ids, counts = counter.index, counter.values
@@ -106,7 +105,8 @@ def relabel(df, save_mapping=True):
 
     savename = f"{CONF.data_root}/mapping.npy"
     savename_inv = f"{CONF.data_root}/mapping_inv.npy"
-    if save_mapping and os.path.exists(savename):
+
+    if save_mapping and not os.path.exists(savename):
         np.save(savename, mapping_dict)
         inv_dict = {v: k for k, v in mapping_dict.items()}
         np.save(savename_inv, inv_dict)
@@ -229,7 +229,10 @@ class LandmarkDatasetSubmit(Dataset):
         root_dir(str) : path of images folder
         """
         df = pd.read_csv(csv_file)
-        df.drop(columns='url', inplace=True)
+        try:
+            df.drop(columns='url', inplace=True)
+        except KeyError:
+            pass
 
         self.num_tot = df.shape[0]
         self.root_dir = root_dir
@@ -242,7 +245,7 @@ class LandmarkDatasetSubmit(Dataset):
 
     def __getitem__(self, idx):
         img_name = str(self.landmarks_frame.iloc[idx]['id'])
-        img_path = os.path.join(self.root_dir, img_name + '.jpg')
+        img_path = id_to_path(self.root_dir, img_name)
 
         try:
             image = io.imread(img_path)
@@ -260,10 +263,9 @@ class LandmarkDatasetSubmit(Dataset):
         return {'image': image, 'name': img_name}
 
 
-def load_dataset_submit(input_size, batch_size):
-    landmark_train_submit = LandmarkDatasetSubmit(csv_file=TEST_FILE, root_dir=TEST_ROOT,
-                                                  input_size=input_size)
-    loader_submit = DataLoader(landmark_train_submit, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS,
+def load_dataset_submit(root_dir, csv_file, input_size, batch_size, num_workers):
+    landmark_train_submit = LandmarkDatasetSubmit(csv_file=csv_file, root_dir=root_dir, input_size=input_size)
+    loader_submit = DataLoader(landmark_train_submit, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                                collate_fn=lm_collate_submit,
                                pin_memory=True)
     return loader_submit
@@ -271,14 +273,14 @@ def load_dataset_submit(input_size, batch_size):
 
 if __name__ == "__main__":
     # sample_toy_dataset()
-    # relabel(pd.read_csv(TRAIN_FILE), save_mapping=True)
+    relabel(pd.read_csv(TRAIN_FILE), save_mapping=True)
 
-    print("Test training loader...")
+    # print("Test training loader...")
     loader_train_sets, loader_val, loader_test, _ = load_dataset((96, 96), 16)
     sample = next(iter(loader_val))
     print(sample['image'].shape, sample['landmark_id'])
-
-    print("Test submitting loader...")
-    loader_submit = load_dataset_submit((96, 96), 256)
-    sample = next(iter(loader_submit))
-    print(sample['image'].shape)
+    #
+    # print("Test submitting loader...")
+    # loader_submit = load_dataset_submit((96, 96), 256)
+    # sample = next(iter(loader_submit))
+    # print(sample['image'].shape)

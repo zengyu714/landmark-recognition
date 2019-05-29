@@ -93,7 +93,10 @@ def load_pretrained_weights(model, weight_url, exclude_layers=None):
 
 
 def load_and_modify_pretrained_num_classes(model, model_url, new_num_classes):
-    model = load_pretrained_weights(model, model_url)
+    try:
+        model = load_pretrained_weights(model, model_url)
+    except RuntimeError:
+        pass
     if any(i in model_url for i in ['senet', 'se_res']):
         num_features = model.last_linear.in_features
         model.last_linear = nn.Linear(num_features, new_num_classes)

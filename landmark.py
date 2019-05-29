@@ -30,7 +30,7 @@ class Landmark:
             - input_size (tuple): Input image size.
             - pretrained (bool):  If `True`, use pretrained weights fro ImageNet.
             - use_stage (bool): If `True`, use three 3 stage finetune strategy.
-            - step_size (int): Step size (epoch) to factor the learning rate.
+            - step_size (int): Step size (epoch) to factor the learning rate. `-1` means no decay
             - lr (float): Learning rate.
             - epochs (int): Number of total training epochs.
             - optim_params (dict): The configuration of the optimizer.
@@ -68,10 +68,11 @@ class Landmark:
         elif optim_name == 'sgd':
             momentum = optim_params.get('momentum', 0.9)
             weight_decay = optim_params.get('weight_decay', 5e-4)
-            self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
-                                       weight_decay=weight_decay)
+            self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum, weight_decay=weight_decay)
         # factor lr by 0.5 in plateau
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=0.5)
+        self.scheduler = None
+        if step_size > 1:
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=0.5)
 
         self.batch_nums = len(self.loader_val)
         self.best_acc = 0
@@ -185,14 +186,15 @@ class Landmark:
             print(f"\"{ckpt_path}\" not found...")
         checkpoint = torch.load(ckpt_path)
         self.model.load_state_dict(checkpoint['model'])
-        self.best_acc = checkpoint.get('acc', 0)
-        self.cur_epoch = checkpoint.get('epoch', 1)
+        self.best_acc = checkpoint['acc']
+        self.cur_epoch = checkpoint['epoch']
         try:
-            print(f"*** Resume checkpoint from \"{self.nickname}\" "
+            print(f"*** Resume checkpoint from best \"{self.nickname}\" "
                   f"with acc {100 * self.best_acc:.7f} in epoch {self.cur_epoch} / {self.tot_epochs}...")
         except TypeError:
-            # If model doesn't have `best_acc` and `cur_epoch`
-            print(f"*** Resume checkpoint from \"{self.nickname}\"...")
+            # If model doesn't have `best_acc` and `cur_epoch` since resumed from newest
+            self.best_acc = 0.0
+            print(f"*** Resume checkpoint from newest \"{self.nickname}\"...")
 
     def save(self, loader_index):
         state = {

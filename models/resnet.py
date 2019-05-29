@@ -256,7 +256,7 @@ def resnet50(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress)
+    model = _resnet('resnet50', Bottleneck, [3, 4, 6, 3], progress=progress, pretrained=False, **kwargs)
     if pretrained:
         model = load_and_modify_pretrained_num_classes(model, model_urls['resnet50'], kwargs['num_classes'])
     return model
