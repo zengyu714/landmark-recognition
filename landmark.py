@@ -46,7 +46,7 @@ class Landmark:
         elif optim_name == 'sgd':
             momentum = optim_params.get('momentum', 0.9)
             weight_decay = optim_params.get('weight_decay', 1e-4)
-            self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
+            self.optimizer = optim.SGD(self.params_to_update, lr=1e-2, momentum=momentum,
                                        weight_decay=weight_decay)
         # factor lr by 0.1 in plateau
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=3, gamma=0.5)
