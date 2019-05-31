@@ -17,7 +17,7 @@ PRINT_EVERY = CONF.print_every
 
 class Landmark:
     def __init__(self, modelname, loader, device, batch_size, pretrained=True, use_stage=False,
-                 lr, epochs=20, optim_params={}, params_to_update=None):
+                 lr=1e-2, epochs=20, optim_params={}, params_to_update=None):
         self.device = device
         self.win_train_loss = None
         self.win_val_acc = None
