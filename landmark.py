@@ -85,16 +85,16 @@ class Landmark:
                       f"loss: {loss.item():.4f}  |  batch: [{t}/{self.batch_nums} ({loader_index}/"
                       f"{len(self.loader_train_sets)})]  |  "
                       f"acc = {acc:.7f}")
-
-                self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
-                if self.win_train_loss is None:
-                    self.win_train_loss = self.vis.line(
-                            X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
-                            Y=np.array([loss.item()]))
-                else:
-                    self.vis.line(
-                            X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
-                            Y=np.array([loss.item()]), win=self.win_train_loss, name='training loss', update='append')
+                #
+                # self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
+                # if self.win_train_loss is None:
+                #     self.win_train_loss = self.vis.line(
+                #             X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
+                #             Y=np.array([loss.item()]))
+                # else:
+                #     self.vis.line(
+                #             X=np.array([self.cur_epoch + t / len(self.loader_train_sets[0])]),
+                #             Y=np.array([loss.item()]), win=self.win_train_loss, name='training loss', update='append')
 
     def val(self):
         num_correct = 0
