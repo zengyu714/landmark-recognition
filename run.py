@@ -29,7 +29,7 @@ parser.add_argument('--optim-params', type=str, default='{"name": "sgd"}',
                     help='The name of optimizer, default is adam')
 parser.add_argument('--tot-epochs', type=int, default=20,
                     help='Total training epochs')
-parser.add_argument('--batch-size', type=int, default=256,
+parser.add_argument('--batch-size', type=int, default=128,
                     help='Batch size')
 
 args = parser.parse_args()

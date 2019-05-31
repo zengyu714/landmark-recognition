@@ -12,8 +12,9 @@ from utils.util import gap_accuracy
 
 from squeezenet import squeezenet1_1
 from mobilenet import mobilenet_v2
+
 PRINT_EVERY = CONF.print_every
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-2
 
 class Landmark:
     def __init__(self, modelname, loader, device, batch_size, pretrained=True, use_stage=False,
@@ -45,7 +46,7 @@ class Landmark:
             self.optimizer = optim.Adam(self.params_to_update, lr=lr, weight_decay=weight_decay, amsgrad=True)
         elif optim_name == 'sgd':
             momentum = optim_params.get('momentum', 0.9)
-            weight_decay = optim_params.get('weight_decay', 5e-4)
+            weight_decay = optim_params.get('weight_decay', 1e-4)
             self.optimizer = optim.SGD(self.params_to_update, lr=lr, momentum=momentum,
                                        weight_decay=weight_decay)
         # factor lr by 0.1 in plateau
