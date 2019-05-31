@@ -4,6 +4,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
+import torchvision.models as models
 
 __all__ = ['MobileNetV2', 'mobilenet_v2']
 
@@ -119,11 +120,12 @@ def mobilenet_v2(pretrained=True, progress=False, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = MobileNetV2(**kwargs)
+    #model = MobileNetV2(**kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls['mobilenet_v2'],
-                                              progress=progress)
-        model.load_state_dict(state_dict)
+        # state_dict = load_state_dict_from_url(model_urls['mobilenet_v2'], progress=progress)
+        # model.load_state_dict(state_dict)
+        model = models.mobilenet_v2(pretrained=True)
+        
         model.classifier = nn.Sequential(
             nn.Dropout(0.2),
             nn.Linear(1280, kwargs['num_classes']),
