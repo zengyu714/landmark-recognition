@@ -15,8 +15,8 @@ CONF.training_toy_dataset = False
 
 # 4132914 = 37123 (train) + 247975 (val) + 165316 (test)
 CONF.data_split = {'train': 0.9, 'val': 0.06, 'test': 0.04}
-CONF.image_size = (256, 256)
-CONF.min_samples = 100
+CONF.image_size = (224, 224)
+CONF.min_samples = 200
 CONF.max_samples = 300
 # filtered with 18k classes
 

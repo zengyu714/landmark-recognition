@@ -266,12 +266,6 @@ def resnet50(pretrained=True, progress=True, **kwargs):
     return model_ft
 
 
-def inceptionV3(pretrained=True, **kwargs):
-    model_ft = torchvision.models.inception_v3(pretrained=True)
-    model_ft.fc = nn.Linear(model_ft.fc.in_features, kwargs['num_classes'])
-    return model_ft
-
-
 def resnet101(pretrained=False, progress=True, **kwargs):
     """Constructs a ResNet-101 model.
 

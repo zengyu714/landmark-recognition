@@ -11,7 +11,7 @@ from resnet import resnet50
 from utils.util import gap_accuracy
 
 from squeezenet import squeezenet1_1
-
+from mobilenet import mobilenet_v2
 PRINT_EVERY = CONF.print_every
 LEARNING_RATE = 1e-3
 
@@ -27,7 +27,7 @@ class Landmark:
         self.loader_train_sets, self.loader_val, _, num_classes = loader(batch_size)
 
         #self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
-        self.model = squeezenet1_1(pretrained=pretrained, num_classes=num_classes)
+        self.model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
 
         self.modelname = modelname
 
