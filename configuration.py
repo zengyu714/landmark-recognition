@@ -17,7 +17,7 @@ CONF.training_toy_dataset = False
 CONF.data_split = {'train': 0.9, 'val': 0.06, 'test': 0.04}
 CONF.image_size = (224, 224)
 CONF.min_samples = 200
-CONF.max_samples = 300
+CONF.max_samples = 500
 # filtered with 18k classes
 
 # any positive number to slice the training loader

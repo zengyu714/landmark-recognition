@@ -14,11 +14,10 @@ from squeezenet import squeezenet1_1
 from mobilenet import mobilenet_v2
 
 PRINT_EVERY = CONF.print_every
-LEARNING_RATE = 1e-2
 
 class Landmark:
     def __init__(self, modelname, loader, device, batch_size, pretrained=True, use_stage=False,
-                 lr=LEARNING_RATE, epochs=20, optim_params={}, params_to_update=None):
+                 lr, epochs=20, optim_params={}, params_to_update=None):
         self.device = device
         self.win_train_loss = None
         self.win_val_acc = None
