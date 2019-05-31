@@ -125,7 +125,7 @@ def mobilenet_v2(pretrained=True, progress=False, **kwargs):
         # state_dict = load_state_dict_from_url(model_urls['mobilenet_v2'], progress=progress)
         # model.load_state_dict(state_dict)
         model = models.mobilenet_v2(pretrained=True)
-        
+
         model.classifier = nn.Sequential(
             nn.Dropout(0.2),
             nn.Linear(1280, kwargs['num_classes']),

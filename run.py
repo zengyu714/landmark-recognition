@@ -23,13 +23,13 @@ parser.add_argument('--use-stage', type=int, default=0,
                     help='Use 3 stage strategy to finetune')
 parser.add_argument('--stage-epoch', type=int, default=3,
                     help='The epoch to finetune the fc layers')
-parser.add_argument('--lr', type=float, default=1e-3,
+parser.add_argument('--lr', type=float, default=1e-2,
                     help='learning rate')
-parser.add_argument('--optim-params', type=str, default='{"name": "adam"}',
+parser.add_argument('--optim-params', type=str, default='{"name": "sgd"}',
                     help='The name of optimizer, default is adam')
 parser.add_argument('--tot-epochs', type=int, default=20,
                     help='Total training epochs')
-parser.add_argument('--batch-size', type=int, default=512,
+parser.add_argument('--batch-size', type=int, default=256,
                     help='Batch size')
 
 args = parser.parse_args()
