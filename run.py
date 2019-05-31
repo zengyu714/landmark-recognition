@@ -120,7 +120,7 @@ def run(pretrain=True):
     print_basic_params(landmark)
 
     try:
-        landmark.resume(f"./checkpoints/{landmark.modelname}_best.ckpt")
+        landmark.resume(f"./checkpoints/{landmark.modelname}_newest.ckpt")
     except FileNotFoundError:
         pass
 
