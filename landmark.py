@@ -132,17 +132,17 @@ class Landmark:
 
             print(f"[{now}] *Val* on epoch {self.cur_epoch} / {self.tot_epochs}  |  "
                   f"acc: {100 * acc:.7f}  |  loss: {loss.item():.4f}  |  GAP: {gap:.7f}")
-
-            self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
-            if self.win_val_acc is None:
-                self.win_val_acc = self.vis.line(
-                        X=np.column_stack([self.cur_epoch] * 2),
-                        Y=np.column_stack([loss.item(), acc]))
-            else:
-                self.vis.line(
-                        X=np.column_stack([self.cur_epoch] * 2),
-                        Y=np.column_stack([loss.item(), acc]), win=self.win_val_acc, name='validation loss / acc',
-                        update='append')
+            #
+            # self.vis.images(x.cpu().data.numpy() * 255, opts=dict(title=f"landmark_id: {y.cpu().numpy()}"))
+            # if self.win_val_acc is None:
+            #     self.win_val_acc = self.vis.line(
+            #             X=np.column_stack([self.cur_epoch] * 2),
+            #             Y=np.column_stack([loss.item(), acc]))
+            # else:
+            #     self.vis.line(
+            #             X=np.column_stack([self.cur_epoch] * 2),
+            #             Y=np.column_stack([loss.item(), acc]), win=self.win_val_acc, name='validation loss / acc',
+            #             update='append')
 
         if acc > self.best_acc:
             state = {
