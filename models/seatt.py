@@ -10,21 +10,21 @@ from .att_module import *
 from .senet import SEBottleneck, SEResNeXtBottleneck, SEResNetBottleneck
 from utils.util import load_and_modify_pretrained_num_classes
 
-__all__ = ['SeAtt', 'seatt154', 'seatt_base56', 'seatt_base92',
-           'seatt_resnext50_32x4d', 'seatt_resnet50', 'seatt_resnext50_base']
+__all__ = ['SeAtt', 'seatt154', 'seatt_base56', 'seatt_base92', 'seatt_resnext50_32x4d',
+           'seatt_resnet50', 'seatt_resnext50_base', 'seatt_resnext50_in224']
 
 model_urls = {
-    'se_resnext50_32x4d' : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth',
-    'seatt_resnet50'     : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth',
-    'se154'              : 'http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth',
+    'se_resnext50_32x4d': 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth',
+    'seatt_resnet50'    : 'http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth',
+    'se154'             : 'http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth',
 }
 
 
 class SeAtt(nn.Module):
 
     def __init__(self, block=SEBottleneck, layers=[3, 8, 36, 3], att_layers=[1, 2, 5],
-                 groups=64, reduction=16, dropout_p=0.2, inplanes=128, input_3x3=True,
-                 downsample_kernel_size=3, downsample_padding=1, num_classes=1000):
+                 att_input_size=(48, 48), groups=64, reduction=16, dropout_p=0.2, inplanes=128,
+                 input_3x3=True, downsample_kernel_size=3, downsample_padding=1, num_classes=1000):
         """
         Args:
             - block (nn.Module): Bottleneck class.
@@ -41,6 +41,8 @@ class SeAtt(nn.Module):
         """
         super(SeAtt, self).__init__()
         self.inplanes = inplanes
+        self.mask_setting = gen_mask(att_input_size)
+
         if input_3x3:
             # CHANGE: use three 3x3 convolutions instead of a single 7x7 convolution in layer0
             layer0_modules = [
@@ -79,7 +81,8 @@ class SeAtt(nn.Module):
                 downsample_padding=0
         )
         self.att_block1 = nn.Sequential(
-                *[AttentionLayer1(256, planes=64, groups=groups, reduction=reduction)] * att_layers[0])
+                *[AttentionLayer1(256, planes=64, groups=groups, reduction=reduction,
+                                  mask_setting=self.mask_setting)] * att_layers[0])
         self.layer2 = self._make_se_block(
                 block,
                 planes=128,
@@ -91,7 +94,8 @@ class SeAtt(nn.Module):
                 downsample_padding=downsample_padding
         )
         self.att_block2 = nn.Sequential(
-                *[AttentionLayer2(512, planes=128, groups=groups, reduction=reduction)] * att_layers[1])
+                *[AttentionLayer2(512, planes=128, groups=groups, reduction=reduction,
+                                  mask_setting=self.mask_setting)] * att_layers[1])
 
         self.layer3 = self._make_se_block(
                 block,
@@ -104,7 +108,8 @@ class SeAtt(nn.Module):
                 downsample_padding=downsample_padding
         )
         self.att_block3 = nn.Sequential(
-                *[AttentionLayer3(1024, planes=256, groups=groups, reduction=reduction)] * att_layers[2])
+                *[AttentionLayer3(1024, planes=256, groups=groups, reduction=reduction,
+                                  mask_setting=self.mask_setting)] * att_layers[2])
 
         self.layer4 = self._make_se_block(
                 block,
@@ -117,7 +122,8 @@ class SeAtt(nn.Module):
                 downsample_padding=downsample_padding
         )
         # CHANGE: pool size 7 -> 3
-        self.avg_pool = nn.AvgPool2d(3, stride=1)
+        layer1_size = att_input_size[0]
+        self.avg_pool = nn.AvgPool2d(int(layer1_size / (2 ** 4)), stride=1)
         self.dropout = nn.Dropout(dropout_p) if dropout_p is not None else None
         self.last_linear = nn.Linear(512 * block.expansion, num_classes)
 
@@ -194,6 +200,18 @@ def seatt_resnext50_base(pretrained=True, **kwargs):
     """
     model = SeAtt(block=SEResNeXtBottleneck, layers=[3, 4, 6, 3], att_layers=[1, 1, 1], groups=32, reduction=16,
                   dropout_p=None, inplanes=64, input_3x3=False,
+                  downsample_kernel_size=1, downsample_padding=0)
+    if pretrained:
+        model = load_and_modify_pretrained_num_classes(model, model_urls['se_resnext50_32x4d'], kwargs['num_classes'])
+    return model
+
+
+def seatt_resnext50_in224(pretrained=True, **kwargs):
+    """
+    The difference with `seatt_resnext50_32x4d` is the number of attention module layer
+    """
+    model = SeAtt(block=SEResNeXtBottleneck, layers=[3, 4, 6, 3], att_layers=[1, 1, 1], groups=32, reduction=16,
+                  att_input_size=(112, 112), dropout_p=None, inplanes=64, input_3x3=False,
                   downsample_kernel_size=1, downsample_padding=0)
     if pretrained:
         model = load_and_modify_pretrained_num_classes(model, model_urls['se_resnext50_32x4d'], kwargs['num_classes'])

@@ -8,7 +8,7 @@ nohup /opt/anaconda3/bin/python -u run.py \
 --use-stage 0 \
 --nickname seatt_123 \
 --modelname seatt_resnext50_32x4d \
---lr 5e-4 \
+--lr 5e-3 \
 --step-size -1 \
 --tot-epochs 30 \
 --input-size 96 \

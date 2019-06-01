@@ -10,7 +10,7 @@ import torch.nn as nn
 from .senet import SEBottleneck
 import torch.nn.functional as F
 
-__all__ = ['AttentionLayer0', 'AttentionLayer1', 'AttentionLayer2', 'AttentionLayer3']
+__all__ = ['AttentionLayer0', 'AttentionLayer1', 'AttentionLayer2', 'AttentionLayer3', 'gen_mask']
 
 
 def _make_pre_last_layer(channels):
@@ -25,17 +25,35 @@ def _make_pre_last_layer(channels):
     )
 
 
-mask_setting = {
-    'layer0': {'1': (48, 48), '2': (24, 24), '3': (12, 12), '4': (6, 6)},
-    'layer1': {'1': (24, 24), '2': (12, 12), '3': (6, 6)},
-    'layer2': {'1': (12, 12), '2': (6, 6)},
-    'layer3': {'1': (6, 6)}
-}
+# mask_setting_48 = {
+#     'layer0': {'1': (48, 48), '2': (24, 24), '3': (12, 12), '4': (6, 6)},
+#     'layer1': {'1': (24, 24), '2': (12, 12), '3': (6, 6)},
+#     'layer2': {'1': (12, 12), '2': (6, 6)},
+#     'layer3': {'1': (6, 6)}
+# }
+
+# mask_setting_48 = {
+#     'layer0': {'1': (112, 112), '2': (56, 56), '3': (28, 28), '4': (14, 14)},
+#     'layer1': {'1': (56, 56), '2': (28, 28), '3': (14, 14)},
+#     'layer2': {'1': (28, 28), '2': (14, 14)},
+#     'layer3': {'1': (14, 14)}
+# }
+
+def gen_mask(input_size=(48, 48)):
+    h, w = input_size
+    mask = {}
+    for i in range(4):
+        mask[f'layer{i}'] = {str(j + 1 - i): (int(h / (2 ** j)), int(w / (2 ** j))) for j in range(i, 4)}
+    return mask
+
+
+mask_setting_48 = gen_mask(input_size=(48, 48))
+mask_setting_112 = gen_mask(input_size=(112, 112))
 
 
 class AttentionLayer0(nn.Module):
 
-    def __init__(self, inplanes, planes, groups, reduction):
+    def __init__(self, inplanes, planes, groups, reduction, mask_setting=mask_setting_48):
         super(AttentionLayer0, self).__init__()
 
         size = mask_setting['layer0']
@@ -113,7 +131,7 @@ class AttentionLayer0(nn.Module):
 
 class AttentionLayer1(nn.Module):
 
-    def __init__(self, inplanes, planes, groups, reduction):
+    def __init__(self, inplanes, planes, groups, reduction, mask_setting=mask_setting_48):
         super(AttentionLayer1, self).__init__()
         self.size = mask_setting['layer1']
 
@@ -172,7 +190,7 @@ class AttentionLayer1(nn.Module):
 
 class AttentionLayer2(nn.Module):
 
-    def __init__(self, inplanes, planes, groups, reduction):
+    def __init__(self, inplanes, planes, groups, reduction, mask_setting=mask_setting_48):
         super(AttentionLayer2, self).__init__()
         self.size = mask_setting['layer2']
 
@@ -219,7 +237,7 @@ class AttentionLayer2(nn.Module):
 
 class AttentionLayer3(nn.Module):
 
-    def __init__(self, inplanes, planes, groups, reduction):
+    def __init__(self, inplanes, planes, groups, reduction, mask_setting=mask_setting_48):
         super(AttentionLayer3, self).__init__()
         self.size = mask_setting['layer3']
 

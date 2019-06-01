@@ -8,7 +8,7 @@ nohup /opt/anaconda3/bin/python -u run.py \
 --use-stage 0 \
 --nickname resnext50 \
 --modelname resnext50_32x4d \
---lr 1e-4 \
+--lr 1e-5 \
 --step-size -1 \
 --tot-epochs 40 \
 --input-size 96 \

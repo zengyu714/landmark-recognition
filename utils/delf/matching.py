@@ -222,7 +222,7 @@ class DeLF:
             pass
 
         if all_inliers and np.mean(all_inliers) < 5:
-            print(f"No landmark in {query_feat_path.split('/')[-1][:-5]}")
+            # print(f"No landmark in {query_feat_path.split('/')[-1][:-5]}")
             snapshot = os.path.join(self.filtered_root, f"{img_id}")
             if not os.path.exists(snapshot):
                 os.mknod(snapshot)
@@ -235,10 +235,4 @@ class DeLF:
         Parallel(n_jobs=-1, verbose=1)(
                 delayed(self.worker)(img_id, score, i, len(df)) for i, (img_id, score) in df.iterrows())
 
-    def gen_filtered_submission(self, savename):
-        filtered = os.listdir(self.filtered_root)
-        delf_df = self.submission_df.copy(deep=True)
-        for id in filtered:
-            delf_df.loc[delf_df['id'] == id, 'landmarks'] = ""
-        delf_df.to_csv(savename)
-        print(f"Saved {savename} filtered by delf")
+

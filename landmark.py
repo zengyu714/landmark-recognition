@@ -184,7 +184,7 @@ class Landmark:
     def resume(self, ckpt_path):
         if not Path(ckpt_path).exists():
             print(f"\"{ckpt_path}\" not found...")
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path, map_location=lambda storage, loc: storage.cuda())
         self.model.load_state_dict(checkpoint['model'])
         self.best_acc = checkpoint['acc']
         self.cur_epoch = checkpoint['epoch']
