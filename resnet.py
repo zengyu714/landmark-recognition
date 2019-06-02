@@ -266,6 +266,13 @@ def resnet50(pretrained=True, progress=True, **kwargs):
     return model_ft
 
 
+def inception_v3(pretrained=True, **kwargs):
+    model = models.inception_v3(pretrained=True)
+    model.AuxLogits.fc = nn.Linear(768, kwargs['num_classes'])
+    model.fc = nn.Linear(2048, kwargs['num_classes'])
+    return model
+
+
 def resnet101(pretrained=False, progress=True, **kwargs):
     """Constructs a ResNet-101 model.
 

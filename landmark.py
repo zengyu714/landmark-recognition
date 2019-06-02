@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from configuration import CONF
-from resnet import resnet50
+from resnet import resnet50, inception_v3
 from utils.util import gap_accuracy
 
 from squeezenet import squeezenet1_1
@@ -27,7 +27,8 @@ class Landmark:
         self.loader_train_sets, self.loader_val, _, num_classes = loader(batch_size)
 
         #self.model = resnet50(pretrained=pretrained, num_classes=num_classes)
-        self.model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
+        #self.model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
+        self.model = inception_v3(pretrained=pretrained, num_classes=num_classes)
 
         self.modelname = modelname
 
