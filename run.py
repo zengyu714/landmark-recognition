@@ -55,7 +55,6 @@ def finetune_stage():
     modelname = args.model_name
 
     # Visualization
-    vis = Visdom(env=modelname)
 
     # Landmark object
     landmark = Landmark(modelname, load_dataset, vis,
